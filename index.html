@@ -15,144 +15,328 @@
     </head>
     <body>
 
-        <header class="header">
-            <div class="header-left">
-                <div class="header-icon">
+        <!-- ── Sidebar ── -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">
                     <svg width="20" height="20" fill="none"
                         stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24"><path
-                            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline
-                            points="14 2 14 8 20 8"></polyline></svg>
+                        viewBox="0 0 24 24">
+                        <path
+                            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
                 </div>
-                <div>
-                    <div class="header-title">Contract Management</div>
-                    <div class="header-subtitle">Manage corporate contracts and
-                        agreements</div>
+                <span class="sidebar-logo-text">ContractHub</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-label">MAIN MENU</div>
+
+                <a class="nav-item" id="nav-dashboard" href="#"
+                    onclick="showPage('dashboard'); return false;">
+                    <span class="nav-icon">
+                        <svg width="18" height="18" fill="none"
+                            stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                    </span>
+                    <span class="nav-label">Dashboard</span>
+                </a>
+
+                <a class="nav-item" id="nav-contracts" href="#"
+                    onclick="showPage('contracts'); return false;">
+                    <span class="nav-icon">
+                        <svg width="18" height="18" fill="none"
+                            stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path
+                                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </span>
+                    <span class="nav-label">Contracts</span>
+                    <span class="nav-badge" id="nav-badge-contracts">—</span>
+                </a>
+
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-footer-info">
+                    <div class="sidebar-footer-dot"></div>
+                    <span>System Online</span>
                 </div>
             </div>
-        </header>
+        </aside>
 
-        <main class="main">
+        <!-- ── Sidebar Overlay (mobile) ── -->
+        <div class="sidebar-overlay" id="sidebar-overlay"
+            onclick="closeSidebar()"></div>
 
-            <div class="stats-strip">
-                <div class="stat-card">
-                    <div class="stat-icon blue">
-                        <svg width="24" height="24" fill="none"
+        <!-- ── Main Wrapper ── -->
+        <div class="layout-wrapper" id="layout-wrapper">
+
+            <!-- ── Top Header ── -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="btn-menu" id="btn-menu"
+                        onclick="toggleSidebar()">
+                        <svg width="20" height="20" fill="none"
                             stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24"><path
-                                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline
-                                points="14 2 14 8 20 8"></polyline></svg>
-                    </div>
-                    <div>
-                        <div class="stat-label">Total Contracts</div>
-                        <div class="stat-value" id="stat-total">—</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon green">
-                        <svg width="24" height="24" fill="none"
+                            viewBox="0 0 24 24">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="header-breadcrumb" id="header-breadcrumb">
+                        <span class="breadcrumb-root">ContractHub</span>
+                        <svg width="14" height="14" fill="none"
                             stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24"><polyline
-                                points="20 6 9 17 4 12"></polyline></svg>
-                    </div>
-                    <div>
-                        <div class="stat-label">Active</div>
-                        <div class="stat-value" id="stat-active">—</div>
+                                points="9 18 15 12 9 6"></polyline></svg>
+                        <span class="breadcrumb-current"
+                            id="breadcrumb-current">Dashboard</span>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon gray">
-                        <svg width="24" height="24" fill="none"
-                            stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24"><circle cx="12" cy="12"
-                                r="10"></circle><line x1="10" y1="15" x2="10"
-                                y2="9"></line><line x1="14" y1="15" x2="14"
-                                y2="9"></line></svg>
-                    </div>
-                    <div>
-                        <div class="stat-label">Inactive</div>
-                        <div class="stat-value" id="stat-inactive">—</div>
+                <div class="header-right">
+                    <div class="header-stats-mini" id="header-stats-mini">
+                        <span class="hstat"><span
+                                class="hstat-dot green"></span><span
+                                id="h-active">—</span> Active</span>
+                        <span class="hstat"><span
+                                class="hstat-dot gray"></span><span
+                                id="h-inactive">—</span> Inactive</span>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            <div class="toolbar">
-                <div class="search-wrap">
-                    <i class="icon">
+            <!-- ── Page: Dashboard ── -->
+            <main class="main page-content" id="page-dashboard">
+
+                <div class="page-heading">
+                    <div>
+                        <h1 class="page-title">Dashboard</h1>
+                        <p class="page-subtitle">Overview of all contracts and
+                            performance metrics</p>
+                    </div>
+                </div>
+
+                <div class="stats-strip">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <svg width="24" height="24" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-label">Total Contracts</div>
+                            <div class="stat-value" id="stat-total">—</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <svg width="24" height="24" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-label">Active</div>
+                            <div class="stat-value" id="stat-active">—</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon gray">
+                            <svg width="24" height="24" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="10" y1="15" x2="10" y2="9"></line>
+                                <line x1="14" y1="15" x2="14" y2="9"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-label">Inactive</div>
+                            <div class="stat-value" id="stat-inactive">—</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon teal">
+                            <svg width="24" height="24" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path
+                                    d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-label">Marketing</div>
+                            <div class="stat-value" id="stat-marketing">—</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange">
+                            <svg width="24" height="24" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="18" rx="2"
+                                    ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="stat-label">Yearly</div>
+                            <div class="stat-value" id="stat-yearly">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Charts Row -->
+                <div class="dashboard-grid">
+                    <div class="dash-card">
+                        <div class="dash-card-header">
+                            <h3 class="dash-card-title">Contract Type
+                                Breakdown</h3>
+                        </div>
+                        <div class="dash-chart-wrap" id="dash-type-chart">
+                            <div class="dash-empty">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="dash-card">
+                        <div class="dash-card-header">
+                            <h3 class="dash-card-title">Status Overview</h3>
+                        </div>
+                        <div class="dash-chart-wrap" id="dash-status-chart">
+                            <div class="dash-empty">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="dash-card dash-card-wide">
+                        <div class="dash-card-header">
+                            <h3 class="dash-card-title">Recent Contracts</h3>
+                            <button class="btn-link"
+                                onclick="showPage('contracts')">View All
+                                →</button>
+                        </div>
+                        <div id="dash-recent-list" class="dash-recent-list">
+                            <div class="dash-empty">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+
+            <!-- ── Page: Contracts ── -->
+            <main class="main page-content" id="page-contracts"
+                style="display:none;">
+
+                <div class="page-heading">
+                    <div>
+                        <h1 class="page-title">Contract Management</h1>
+                        <p class="page-subtitle">Manage corporate contracts and
+                            agreements</p>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-wrap">
+                        <i class="icon">
+                            <svg width="16" height="16" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65"
+                                    y2="16.65"></line>
+                            </svg>
+                        </i>
+                        <input type="text" id="search-input"
+                            class="search-input"
+                            placeholder="Search Contract ID, Promotion, Principle..." />
+                    </div>
+
+                    <select id="filter-type" class="filter-select">
+                        <option value>All Types</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Yearly">Yearly</option>
+                    </select>
+
+                    <select id="filter-status" class="filter-select">
+                        <option value>All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                    <button class="btn-primary" onclick="openAddModal()">
                         <svg width="16" height="16" fill="none"
                             stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24"><circle cx="11" cy="11"
-                                r="8"></circle><line x1="21" y1="21" x2="16.65"
-                                y2="16.65"></line></svg>
-                    </i>
-                    <input type="text" id="search-input" class="search-input"
-                        placeholder="Search Contract ID, Promotion, Principle..." />
+                            viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Add Contract
+                    </button>
                 </div>
 
-                <select id="filter-type" class="filter-select">
-                    <option value>All Types</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Yearly">Yearly</option>
-                </select>
-
-                <select id="filter-status" class="filter-select">
-                    <option value>All Statuses</option>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                </select>
-                <button class="btn-primary" onclick="openAddModal()">
-                    <svg width="16" height="16" fill="none"
-                        stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24"><line x1="12" y1="5" x2="12"
-                            y2="19"></line><line x1="5" y1="12" x2="19"
-                            y2="12"></line></svg>
-                    Add Contract
-                </button>
-            </div>
-
-            <div class="table-card">
-                <div class="table-wrap">
-                    <div class="table-loading" id="table-loading"
-                        style="display:none;">
-                        <div class="spinner"></div> Loading...
+                <div class="table-card">
+                    <div class="table-wrap">
+                        <div class="table-loading" id="table-loading"
+                            style="display:none;">
+                            <div class="spinner"></div> Loading...
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="col-no">NO.</th>
+                                    <th class="col-code">CODE OUTLET</th>
+                                    <th class="col-company">COMPANY</th>
+                                    <th class="col-outlet">OUTLET NAME</th>
+                                    <th class="col-area">AREA</th>
+                                    <th class="col-province">PROVINCE</th>
+                                    <th class="col-type">TYPE</th>
+                                    <th class="col-promo">PROMOTION</th>
+                                    <th class="col-trade">TRADE DEAL</th>
+                                    <th class="col-bde">BDE</th>
+                                    <th class="col-start">START</th>
+                                    <th class="col-end">END</th>
+                                    <th class="col-remark">REMARK</th>
+                                    <th class="col-received">RECEIVED DATE</th>
+                                    <th class="col-status">STATUS</th>
+                                    <th class="col-principle">PRINCIPLE</th>
+                                    <th class="col-brand">BRAND</th>
+                                    <th class="col-actions">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contracts-tbody">
+                                <tr><td colspan="18" class="empty-state">Loading
+                                        data...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class="col-no">NO.</th>
-                                <th class="col-code">CODE OUTLET</th>
-                                <th class="col-company">COMPANY</th>
-                                <th class="col-outlet">OUTLET NAME</th>
-                                <th class="col-area">AREA</th>
-                                <th class="col-province">PROVINCE</th>
-                                <th class="col-type">TYPE</th>
-                                <th class="col-promo">PROMOTION</th>
-                                <th class="col-trade">TRADE DEAL</th>
-                                <th class="col-bde">BDE</th>
-                                <th class="col-start">START</th>
-                                <th class="col-end">END</th>
-                                <th class="col-remark">REMARK</th>
-                                <th class="col-received">RECEIVED DATE</th>
-                                <th class="col-status">STATUS</th>
-                                <th class="col-principle">PRINCIPLE</th>
-                                <th class="col-brand">BRAND</th>
-                                <th class="col-actions">ACTIONS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="contracts-tbody">
-                            <tr><td colspan="18" class="empty-state">Loading
-                                    data...</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="table-footer">
+                        <div class="page-info" id="page-info">—</div>
+                        <div id="pagination"></div>
+                    </div>
                 </div>
-                <div class="table-footer">
-                    <div class="page-info" id="page-info">—</div>
-                    <div id="pagination"></div>
-                </div>
-            </div>
 
-        </main>
+            </main>
 
+        </div><!-- /.layout-wrapper -->
+
+        <!-- ── Add/Edit Modal ── -->
         <div class="modal-overlay" id="modal-overlay">
             <div class="modal">
                 <div class="modal-header">
@@ -160,9 +344,10 @@
                     <button class="btn-close" onclick="closeModal()">
                         <svg width="20" height="20" fill="none"
                             stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24"><line x1="18" y1="6" x2="6"
-                                y2="18"></line><line x1="6" y1="6" x2="18"
-                                y2="18"></line></svg>
+                            viewBox="0 0 24 24">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                     </button>
                 </div>
                 <div class="modal-body">
@@ -206,9 +391,8 @@
                             </div>
                         </div>
 
-                        <div class="section-divider">
-                            <span>Contract Details</span>
-                        </div>
+                        <div class="section-divider"><span>Contract
+                                Details</span></div>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Principle</label>
@@ -240,7 +424,6 @@
                                     placeholder="Additional notes..."></textarea>
                             </div>
                         </div>
-
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -250,25 +433,30 @@
                         onclick="saveContract()">
                         <svg width="16" height="16" fill="none"
                             stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24"><path
-                                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline
-                                points="17 21 17 13 7 13 7 21"></polyline><polyline
-                                points="7 3 7 8 15 8"></polyline></svg>
+                            viewBox="0 0 24 24">
+                            <path
+                                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
                         Save
                     </button>
                 </div>
             </div>
         </div>
 
+        <!-- ── Delete Modal ── -->
         <div class="delete-modal-overlay" id="delete-modal">
             <div class="delete-modal">
                 <div class="delete-icon">
                     <svg width="48" height="48" fill="none"
                         stroke="currentColor" stroke-width="1.5"
-                        viewBox="0 0 24 24"><path
-                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line
-                            x1="10" y1="11" x2="10" y2="17"></line><line x1="14"
-                            y1="11" x2="14" y2="17"></line></svg>
+                        viewBox="0 0 24 24">
+                        <path
+                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
                 </div>
                 <h3>Confirm Deletion</h3>
                 <p>Are you sure you want to delete the contract for<br><strong
@@ -291,6 +479,6 @@
         <script
             src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
         <script src="config.js"></script>
-        <script src="app.js?v=2"></script>
+        <script src="app.js?v=3"></script>
     </body>
 </html>
