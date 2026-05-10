@@ -30,15 +30,190 @@ const tsInstances = {};
 let marketingLines = [];
 let linesTsInstances = {};
 
-// ── Init ───────────────────────────────────
+// ── Sidebar & Navigation ───────────────────
+let sidebarCollapsed = false;
+
+function toggleSidebar() {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('mobile-open');
+    } else {
+        sidebarCollapsed = !sidebarCollapsed;
+        document.body.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+    }
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('mobile-open');
+    document.getElementById('sidebar-overlay').classList.remove('mobile-open');
+}
+
+function showPage(page) {
+    // Hide all pages
+    document.getElementById('page-dashboard').style.display = 'none';
+    document.getElementById('page-contracts').style.display = 'none';
+
+    // Remove active from all nav items
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+    // Show selected
+    document.getElementById('page-' + page).style.display = 'block';
+    document.getElementById('nav-' + page).classList.add('active');
+
+    // Update breadcrumb
+    const labels = { dashboard: 'Dashboard', contracts: 'Contracts' };
+    document.getElementById('breadcrumb-current').textContent = labels[page] || page;
+
+    // Trigger dashboard render if switching to it
+    if (page === 'dashboard') {
+        renderDashboard();
+    }
+
+    // Close mobile sidebar after nav
+    closeSidebar();
+}
+
+// ── Dashboard Render ───────────────────────
+function renderDashboard() {
+    // นับแบบเดียวกับ updateStats() — Marketing group นับ 1
+    const seenGroups = new Set();
+    let marketingCount = 0, yearlyCount = 0;
+    let activeCount = 0, inactiveCount = 0;
+
+    contracts.forEach(c => {
+        if (c.contract_type === 'Marketing') {
+            const key = c.contract_group_id || getGroupKey(c);
+            if (seenGroups.has(key)) return; // นับ group เดียว
+            seenGroups.add(key);
+            marketingCount++;
+            if (!c.period || c.period === 'Active') activeCount++;
+            else if (c.period === 'Inactive') inactiveCount++;
+        } else {
+            yearlyCount++;
+            if (!c.period || c.period === 'Active') activeCount++;
+            else if (c.period === 'Inactive') inactiveCount++;
+        }
+    });
+
+    renderDonutChart('dash-type-chart', [
+        { label: 'Marketing', value: marketingCount, color: '#f59e0b' },
+        { label: 'Yearly',    value: yearlyCount,    color: '#0891b2' },
+    ]);
+
+    renderDonutChart('dash-status-chart', [
+        { label: 'Active',   value: activeCount,   color: '#16a34a' },
+        { label: 'Inactive', value: inactiveCount, color: '#94a3b8' },
+    ]);
+
+    renderRecentContracts();
+}
+
+function renderDonutChart(containerId, segments) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const total = segments.reduce((s, x) => s + x.value, 0);
+    if (total === 0) {
+        container.innerHTML = '<div class="dash-empty">No data available</div>';
+        return;
+    }
+
+    const size = 120;
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = 44;
+    const strokeW = 22;
+
+    let currentAngle = -90;
+    let paths = '';
+
+    segments.forEach(seg => {
+        if (seg.value === 0) return;
+        const pct = seg.value / total;
+        const angle = pct * 360;
+        const startRad = (currentAngle * Math.PI) / 180;
+        const endRad   = ((currentAngle + angle) * Math.PI) / 180;
+        const x1 = cx + r * Math.cos(startRad);
+        const y1 = cy + r * Math.sin(startRad);
+        const x2 = cx + r * Math.cos(endRad);
+        const y2 = cy + r * Math.sin(endRad);
+        const largeArc = angle > 180 ? 1 : 0;
+        paths += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z" fill="${seg.color}" opacity="0.9"/>`;
+        currentAngle += angle;
+    });
+
+    // Center hole
+    paths += `<circle cx="${cx}" cy="${cy}" r="${r - strokeW / 2 - 2}" fill="white"/>`;
+    // Center text
+    paths += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="18" font-weight="700" fill="#1a202c">${total}</text>`;
+    paths += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" fill="#718096">TOTAL</text>`;
+
+    const legendHtml = segments.map(seg => {
+        const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
+        return `<div class="legend-item">
+            <div class="legend-dot" style="background:${seg.color}"></div>
+            <span class="legend-label">${seg.label}</span>
+            <span class="legend-value">${seg.value}</span>
+            <span class="legend-pct">${pct}%</span>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="donut-wrap">
+            <svg class="donut-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg>
+            <div class="donut-legend">${legendHtml}</div>
+        </div>`;
+}
+
+function renderRecentContracts() {
+    const container = document.getElementById('dash-recent-list');
+    if (!container) return;
+
+    const recent = [...contracts]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 8);
+
+    if (recent.length === 0) {
+        container.innerHTML = '<div class="dash-empty">No contracts yet</div>';
+        return;
+    }
+
+    container.innerHTML = recent.map(c => {
+        const customer = c.customer || {};
+        const outlet = customer.outlet_name || c.customer_id || '—';
+        const type = c.contract_type || 'Yearly';
+        const typeBadge = type === 'Marketing'
+            ? `<span class="type-badge type-marketing">Marketing</span>`
+            : `<span class="type-badge type-yearly">Yearly</span>`;
+        const statusBadge = `<span class="badge ${getStatusBadge(c.period)}">${c.period || 'Active'}</span>`;
+        const date = c.created_at ? formatMonthYear(c.created_at) : '—';
+
+        return `<div class="recent-item">
+            <div>
+                <div class="recent-outlet">${escHtml(outlet)}</div>
+                <div class="recent-meta">${escHtml(customer.province || '—')} · ${date}</div>
+            </div>
+            <div class="recent-right">
+                ${typeBadge}
+                ${statusBadge}
+            </div>
+        </div>`;
+    }).join('');
+}
+
 // ── Init ───────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    // เพิ่ม loadCustomers() เข้าไปใน Promise.all เพื่อให้ดึงข้อมูล Outlet มาตั้งแต่เริ่ม
-    await Promise.all([loadCustomers(), loadUsers(), initCreatableFields()]); 
-    
-    // populateCustomerDropdown() จะถูกเรียกภายใน loadCustomers() อยู่แล้ว 
-    // จึงไม่ต้องเรียกซ้ำที่นี่ก็ได้ หรือจะคงไว้เพื่อความชัวร์ก็ได้ครับ
-    
+    // Set tooltips for collapsed sidebar
+    document.getElementById('nav-dashboard').setAttribute('data-tooltip', 'Dashboard');
+    document.getElementById('nav-contracts').setAttribute('data-tooltip', 'Contracts');
+
+    // Default active page
+    showPage('dashboard');
+
+    await Promise.all([loadCustomers(), loadUsers(), initCreatableFields()]);
     await backfillMarketingGroupIds();
     await loadContracts();
     setupEventListeners();
@@ -47,13 +222,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Load Customers ─────────────────────────
 async function loadCustomers() {
     const { data, error } = await supabaseClient
-        .from('customer_information')
-        .select('customer_id, outlet_name, bde, address')
+        .from('customers')
+        .select('customer_id, outlet_name, bde, province, region')
         .order('outlet_name');
 
     if (error) {
         console.error('Load customers error:', error);
-        // สั่งให้แจ้งเตือนด้วย จะได้รู้ถ้าระบบโหลดไม่ขึ้น
         showToast('Load customers error: ' + error.message, 'error');
         return;
     }
@@ -70,7 +244,6 @@ function populateCustomerDropdown() {
     }
     sel.innerHTML = '';
 
-    // นำข้อมูลจาก array 'customers' ที่ดึงมาแล้วมาสร้างเป็น options เริ่มต้น
     const initialOptions = customers.map(c => ({
         value: String(c.customer_id),
         text: `${c.customer_id} — ${c.outlet_name || 'ไม่ระบุ'}`,
@@ -79,13 +252,12 @@ function populateCustomerDropdown() {
 
     if (window.TomSelect) {
         tsInstances['field-customer'] = new TomSelect('#field-customer', {
-            options: initialOptions, // ใส่ข้อมูลที่โหลดมาแล้วเข้าไปที่นี่
+            options: initialOptions,
             valueField: 'value',
             labelField: 'text',
             searchField: ['text'],
             placeholder: 'Search Outlet...',
             dropdownParent: 'body',
-            // นำ preload และ load แบบ async ออก เพราะเรามีข้อมูลครบแล้ว
             onChange: function (value) {
                 const opt = this.options[value];
                 if (opt && opt.bde) {
@@ -125,8 +297,6 @@ async function loadUsers() {
             maxOptions: 200,
             placeholder: 'Search BDE...',
         });
-
-        // --- เพิ่มบรรทัดนี้เพื่อล็อกไม่ให้กดแก้ ---
         tsInstances['field-bde'].disable();
     }
 }
@@ -241,14 +411,11 @@ async function loadContracts() {
     if (filterStatus) {
         query = query.eq('period', filterStatus);
     }
-    // --- เพิ่มเงื่อนไขนี้เข้าไป ---
     if (filterType) {
         query = query.eq('contract_type', filterType);
     }
-    // -------------------------
 
-    // ดึงข้อมูลทั้งหมดมาเรียงและจัด Group ใน Client-Side
-    query = query.order('created_at', { ascending: true }); // Oldest first
+    query = query.order('created_at', { ascending: true });
 
     const { data, error } = await query;
     showTableLoading(false);
@@ -258,6 +425,11 @@ async function loadContracts() {
     contracts = data || [];
     renderTable();
     updateStats();
+
+    // Re-render dashboard if it's currently visible
+    if (document.getElementById('page-dashboard').style.display !== 'none') {
+        renderDashboard();
+    }
 }
 
 function getGroupKey(c) {
@@ -280,7 +452,6 @@ function renderTable() {
     const rows = [];
     const groupMap = {};
 
-    // 1. นำข้อมูลมาจัด Group
     contracts.forEach(c => {
         if (c.contract_type === 'Marketing') {
             const groupKey = c.contract_group_id || getGroupKey(c);
@@ -295,32 +466,23 @@ function renderTable() {
         }
     });
 
-    // 2. นับเลข (NO.) แยกประเภท Marketing และ Yearly ตลอดทั้งตาราง
     let mCount = 1;
     let yCount = 1;
     rows.forEach(row => {
-        if (row.type === 'marketing-group') {
-            row.no = mCount++;
-        } else {
-            row.no = yCount++;
-        }
+        if (row.type === 'marketing-group') row.no = mCount++;
+        else row.no = yCount++;
     });
 
     totalCount = rows.length;
     renderPagination();
 
-    // 3. แบ่งหน้าเฉพาะข้อมูลที่ตัด Group แล้ว
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const pageRows = rows.slice(startIndex, startIndex + PAGE_SIZE);
 
-    // 4. Render ลงใน HTML
     let html = '';
     pageRows.forEach(row => {
-        if (row.type === 'yearly') {
-            html += renderYearlyRow(row.contract, row.no);
-        } else {
-            html += renderMarketingGroup(row, row.no);
-        }
+        if (row.type === 'yearly') html += renderYearlyRow(row.contract, row.no);
+        else html += renderMarketingGroup(row, row.no);
     });
 
     tbody.innerHTML = html;
@@ -329,8 +491,8 @@ function renderTable() {
 function renderYearlyRow(c, no) {
     const customer = c.customer || {};
     const bdeUser = c.bde_user || {};
-    const area = customer.team || '—';
-    const province = extractProvince(customer.address) || '—';
+    const area = customer.region || '—';
+    const province = customer.province || '—';
     const startFmt = c.start_date ? formatDate(c.start_date) : '—';
     const endFmt = c.end_date ? formatDate(c.end_date) : '—';
     const received = c.created_at ? formatMonthYear(c.created_at) : '—';
@@ -371,8 +533,8 @@ function renderMarketingGroup(row, no) {
     const c = row.header;
     const customer = c.customer || {};
     const bdeUser = c.bde_user || {};
-    const area = customer.team || '—';
-    const province = extractProvince(customer.address) || '—';
+    const area = customer.region || '—';
+    const province = customer.province || '—';
     const startFmt = c.start_date ? formatDate(c.start_date) : '—';
     const endFmt = c.end_date ? formatDate(c.end_date) : '—';
     const received = c.created_at ? formatMonthYear(c.created_at) : '—';
@@ -401,9 +563,7 @@ function renderMarketingGroup(row, no) {
       <td class="col-outlet">${escHtml(customer.outlet_name || '—')}</td>
       <td class="col-area">${escHtml(area)}</td>
       <td class="col-province">${escHtml(province)}</td>
-      <td class="col-type">
-        <span class="type-badge type-marketing">Marketing</span>
-      </td>
+      <td class="col-type"><span class="type-badge type-marketing">Marketing</span></td>
       <td class="col-promo" title="${escHtml(promos)}">${escHtml(truncate(promos, 20))}</td>
       <td class="col-trade" title="${escHtml(trades)}">${escHtml(truncate(trades, 20))}</td>
       <td class="col-bde">${escHtml(bdeUser.name || c.bde_id || '—')}</td>
@@ -422,7 +582,6 @@ function renderMarketingGroup(row, no) {
       </td>
     </tr>`;
 
-    // บรรทัดย่อย
     row.lines.slice(1).forEach((line, idx) => {
         const lineNo = idx + 2;
         const lineBde = (line.bde_user && line.bde_user.name) || line.bde_id || '—';
@@ -485,12 +644,6 @@ function getStatusBadge(period) {
     return 'badge-default';
 }
 
-function extractProvince(address) {
-    if (!address) return '';
-    const parts = address.split(' ');
-    return parts[parts.length - 1] || '';
-}
-
 function formatDate(dateStr) {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -540,6 +693,8 @@ function updateStats() {
     let totalGroups = 0;
     let activeGroups = 0;
     let inactiveGroups = 0;
+    let marketingGroups = 0;
+    let yearlyGroups = 0;
     const groupMap = new Set();
 
     contracts.forEach(c => {
@@ -548,11 +703,13 @@ function updateStats() {
             if (!groupMap.has(key)) {
                 groupMap.add(key);
                 totalGroups++;
+                marketingGroups++;
                 if (c.period === 'Active' || !c.period) activeGroups++;
                 else if (c.period === 'Inactive') inactiveGroups++;
             }
         } else {
             totalGroups++;
+            yearlyGroups++;
             if (c.period === 'Active' || !c.period) activeGroups++;
             else if (c.period === 'Inactive') inactiveGroups++;
         }
@@ -561,6 +718,18 @@ function updateStats() {
     document.getElementById('stat-total').textContent = totalGroups;
     document.getElementById('stat-active').textContent = activeGroups;
     document.getElementById('stat-inactive').textContent = inactiveGroups;
+    document.getElementById('stat-marketing').textContent = marketingGroups;
+    document.getElementById('stat-yearly').textContent = yearlyGroups;
+
+    // Header mini stats
+    const hActive = document.getElementById('h-active');
+    const hInactive = document.getElementById('h-inactive');
+    if (hActive) hActive.textContent = activeGroups;
+    if (hInactive) hInactive.textContent = inactiveGroups;
+
+    // Nav badge
+    const navBadge = document.getElementById('nav-badge-contracts');
+    if (navBadge) navBadge.textContent = totalGroups;
 }
 
 // ── Tom Select helpers ─────────────────────
@@ -623,12 +792,39 @@ async function openEditModal(id) {
     document.getElementById('modal-overlay').classList.add('active');
 }
 
+async function openEditMarketingGroup(groupId) {
+    const contract = contracts.find(c =>
+        c.contract_type === 'Marketing' &&
+        (c.contract_group_id === groupId || getGroupKey(c) === groupId)
+    );
+    if (!contract) return;
+
+    editingId = contract.id;
+    editingGroupId = groupId;
+
+    document.getElementById('modal-title').textContent = 'Edit Marketing Contract';
+    setTsValue('field-customer', contract.customer_id);
+    setField('field-contract-type', contract.contract_type || 'Marketing');
+    setTsValue('field-promotion', contract.promotion || '');
+    setTsValue('field-trade-deal', contract.trade_deal || '');
+    setTsValue('field-bde', contract.bde_id || '');
+    setField('field-start', contract.start_date || '');
+    setField('field-end', contract.end_date || '');
+    setField('field-remark', contract.support || '');
+    setField('field-status', contract.period || 'Active');
+    setTsValue('field-principle', contract.principle || '');
+    setTsValue('field-brands', contract.brands || '');
+
+    document.getElementById('modal-overlay').classList.add('active');
+}
+
 function closeModal() {
     document.getElementById('modal-overlay').classList.remove('active');
     editingId = null;
+    editingGroupId = null;
 }
 
-// ── Save Contract (Single form logic) ──────
+// ── Save Contract ──────────────────────────
 async function saveContract() {
     const customerId = getTsValue('field-customer');
     if (!customerId) { showToast('Please select an Outlet.', 'error'); return; }
@@ -711,7 +907,6 @@ async function executeDelete() {
             .map(c => c.id);
 
         const { error } = await supabaseClient.from('contract').delete().in('id', ids);
-
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
         showToast('Marketing Group deleted', 'success');
     } else if (deleteTargetId) {
@@ -733,6 +928,12 @@ function setupEventListeners() {
 
     document.getElementById('filter-status').addEventListener('change', e => {
         filterStatus = e.target.value;
+        currentPage = 1;
+        loadContracts();
+    });
+
+    document.getElementById('filter-type').addEventListener('change', e => {
+        filterType = e.target.value;
         currentPage = 1;
         loadContracts();
     });
