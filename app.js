@@ -543,8 +543,8 @@ function renderMarketingGroup(row, no) {
 
     const principles = [...new Set(row.lines.map(l => l.principle).filter(Boolean))].join(', ') || '—';
     const brands = [...new Set(row.lines.map(l => l.brands).filter(Boolean))].join(', ') || '—';
-    const promos = [...new Set(row.lines.map(l => l.promotion).filter(Boolean))].join(', ') || '—';
-    const trades = [...new Set(row.lines.map(l => l.trade_deal).filter(Boolean))].join(', ') || '—';
+    const promos = c.promotion || '—';
+    const trades = c.trade_deal || '—';
 
     const expandBtn = lineCount > 1
         ? `<button class="btn-expand" id="expand-btn-${gid}" onclick="toggleGroup('${gid}')" title="View Lines">${icons.chevronRight}</button>`
@@ -583,7 +583,6 @@ function renderMarketingGroup(row, no) {
     </tr>`;
 
     row.lines.slice(1).forEach((line, idx) => {
-        const lineNo = idx + 2;
         const lineBde = (line.bde_user && line.bde_user.name) || line.bde_id || '—';
         const lineStartFmt = line.start_date ? formatDate(line.start_date) : '—';
         const lineEndFmt = line.end_date ? formatDate(line.end_date) : '—';
@@ -594,7 +593,7 @@ function renderMarketingGroup(row, no) {
       <td class="col-no">
          <div class="no-wrapper line-indent" style="color: var(--text-3);">
             <div class="no-icon-slot" style="font-size: 13px;">└</div>
-            <span>${lineNo}</span>
+            <span></span>
          </div>
       </td>
       <td class="col-code" style="color: var(--text-3); font-weight: normal;">${escHtml(customer.customer_id || line.customer_id || '—')}</td>
@@ -602,7 +601,7 @@ function renderMarketingGroup(row, no) {
       <td class="col-outlet" style="color: var(--text-3);">${escHtml(customer.outlet_name || '—')}</td>
       <td class="col-area" style="color: var(--text-3);">${escHtml(area)}</td>
       <td class="col-province" style="color: var(--text-3);">${escHtml(province)}</td>
-      <td class="col-type"></td>
+      <td class="col-type"><span class="type-badge type-marketing">Marketing</span></td>
       <td class="col-promo">${escHtml(line.promotion || '—')}</td>
       <td class="col-trade">${escHtml(line.trade_deal || '—')}</td>
       <td class="col-bde">${escHtml(lineBde)}</td>
@@ -617,7 +616,7 @@ function renderMarketingGroup(row, no) {
       <td class="col-brand">${escHtml(line.brands || '—')}</td>
       <td class="col-actions">
         <button class="btn-icon btn-edit" onclick="openEditModal('${line.id}')" title="Edit">${icons.edit}</button>
-        <button class="btn-icon btn-delete" onclick="confirmDelete('${line.id}', 'Line ${lineNo}')" title="Delete">${icons.trash}</button>
+        <button class="btn-icon btn-delete" onclick="confirmDelete('${line.id}', 'Line')" title="Delete">${icons.trash}</button>
       </td>
     </tr>`;
     });
