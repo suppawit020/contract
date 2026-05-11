@@ -30,8 +30,11 @@ const tsInstances = {};
 let marketingLines = [];
 let linesTsInstances = {};
 
-// ตัวแปร global สำหรับเก็บ instance ของกราฟเปรียบเทียบ
+// ── Chart Instances ────────────────────────
 let comparisonChartInstance = null;
+let bdeChartInstance = null;
+let principleChartInstance = null;
+let trendChartInstance = null;
 
 // ── Sidebar & Navigation ───────────────────
 let sidebarCollapsed = true;
@@ -44,7 +47,6 @@ function toggleSidebar() {
         sidebar.classList.toggle('mobile-open');
         overlay.classList.toggle('mobile-open');
     } else {
-        // Remove inline style so CSS class takes over
         document.getElementById('sidebar').style.width = '';
         document.getElementById('layout-wrapper').style.marginLeft = '';
         sidebarCollapsed = !sidebarCollapsed;
@@ -58,32 +60,30 @@ function closeSidebar() {
 }
 
 function showPage(page) {
-    // Hide all pages
     document.getElementById('page-dashboard').style.display = 'none';
     document.getElementById('page-contracts').style.display = 'none';
-
-    // Remove active from all nav items
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
-    // Show selected
     document.getElementById('page-' + page).style.display = 'block';
     document.getElementById('nav-' + page).classList.add('active');
 
-    // Update breadcrumb
     const labels = { dashboard: 'Dashboard', contracts: 'Contracts' };
     document.getElementById('breadcrumb-current').textContent = labels[page] || page;
 
-    // Trigger dashboard render if switching to it
     if (page === 'dashboard') {
-        renderDashboard();
+        const activeView = document.getElementById('dashboard-view-selector').value;
+        if (activeView === 'overview') {
+            renderDashboard();
+        } else if (activeView === 'bde') {
+            renderBdeChart();
+        } else if (activeView === 'brands') {
+            renderPrincipleChart();
+        }
     }
 
-    // Close mobile sidebar after nav
     closeSidebar();
     const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-        closeSidebar();
-    } else {
+    if (!isMobile) {
         sidebarCollapsed = true;
         document.body.classList.add('sidebar-collapsed');
     }
@@ -91,7 +91,6 @@ function showPage(page) {
 
 // ── Dashboard Render ───────────────────────
 function renderDashboard() {
-    // นับแบบเดียวกับ updateStats() — Marketing group นับ 1
     const seenGroups = new Set();
     let marketingCount = 0, yearlyCount = 0;
     let activeCount = 0, inactiveCount = 0;
@@ -121,7 +120,7 @@ function renderDashboard() {
         { label: 'Inactive', value: inactiveCount, color: '#94a3b8' },
     ]);
 
-    // วาดกราฟเปรียบเทียบ
+    renderTrendChart();
     renderComparisonChart();
 }
 
@@ -159,9 +158,7 @@ function renderDonutChart(containerId, segments) {
         currentAngle += angle;
     });
 
-    // Center hole
     paths += `<circle cx="${cx}" cy="${cy}" r="${r - strokeW / 2 - 2}" fill="white"/>`;
-    // Center text
     paths += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="18" font-weight="700" fill="#1a202c">${total}</text>`;
     paths += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" fill="#718096">TOTAL</text>`;
 
@@ -182,12 +179,83 @@ function renderDonutChart(containerId, segments) {
         </div>`;
 }
 
+// ── Trend Analysis Chart (Line Chart) ──────────────────────
+function renderTrendChart() {
+    const ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+
+    const period = document.getElementById('trend-period-selector').value;
+    const timeData = new Map(); // Using Map to preserve chronological insertion order
+    const now = new Date();
+
+    contracts.forEach(c => {
+        if (!c.created_at) return;
+        const d = new Date(c.created_at);
+        let label = '';
+
+        if (period === 'daily') {
+            const diffTime = now - d;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 30 && diffDays >= 0) {
+                label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            }
+        } else if (period === 'monthly') {
+            if (d.getFullYear() === now.getFullYear()) {
+                label = d.toLocaleDateString('en-GB', { month: 'short' });
+            }
+        } else if (period === 'yearly') {
+            label = d.getFullYear().toString();
+        }
+
+        if (label) {
+            timeData.set(label, (timeData.get(label) || 0) + 1);
+        }
+    });
+
+    const labels = Array.from(timeData.keys());
+    const data = Array.from(timeData.values());
+
+    if (trendChartInstance) trendChartInstance.destroy();
+
+    trendChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'New Contracts',
+                data: data,
+                borderColor: '#0891b2',
+                backgroundColor: 'rgba(8, 145, 178, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#0891b2'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)'
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
+            }
+        }
+    });
+}
+
 // ── Statistical Comparison Chart (Bar Chart) ───────────────
 function renderComparisonChart() {
     const ctx = document.getElementById('comparisonChart');
     if (!ctx) return;
 
-    // เตรียมข้อมูล: นับจำนวน Marketing vs Yearly แยกตาม Area
     const areaData = {};
     const seenGroups = new Set();
 
@@ -195,7 +263,6 @@ function renderComparisonChart() {
         const type = c.contract_type || 'Yearly';
         const area = (c.customer && c.customer.region) ? c.customer.region : 'Unknown Area';
 
-        // กรองการนับซ้ำของ Marketing Group
         if (type === 'Marketing') {
             const key = c.contract_group_id || getGroupKey(c);
             if (seenGroups.has(key)) return;
@@ -208,17 +275,14 @@ function renderComparisonChart() {
         areaData[area][type]++;
     });
 
-    // แยกข้อมูลแกน X (ชื่อ Area) และแกน Y (จำนวนแต่ละประเภท)
     const labels = Object.keys(areaData).sort();
     const marketingCounts = labels.map(label => areaData[label].Marketing);
     const yearlyCounts = labels.map(label => areaData[label].Yearly);
 
-    // ทำลายกราฟเก่าทิ้งก่อนวาดใหม่ (ป้องกันปัญหากราฟซ้อนทับกันเมื่อ Resize หรือโหลดข้อมูลใหม่)
     if (comparisonChartInstance) {
         comparisonChartInstance.destroy();
     }
 
-    // วาดกราฟแท่ง
     comparisonChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -227,7 +291,7 @@ function renderComparisonChart() {
                 {
                     label: 'Marketing',
                     data: marketingCounts,
-                    backgroundColor: '#f59e0b', // สีเดียวกับ Donut Chart
+                    backgroundColor: '#f59e0b',
                     borderRadius: 4,
                     barPercentage: 0.6,
                     categoryPercentage: 0.8
@@ -235,7 +299,7 @@ function renderComparisonChart() {
                 {
                     label: 'Yearly',
                     data: yearlyCounts,
-                    backgroundColor: '#0891b2', // สีเดียวกับ Donut Chart
+                    backgroundColor: '#0891b2',
                     borderRadius: 4,
                     barPercentage: 0.6,
                     categoryPercentage: 0.8
@@ -246,57 +310,117 @@ function renderComparisonChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20,
-                        font: { family: "'DM Sans', 'Sarabun', sans-serif", size: 13 }
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleFont: { family: "'DM Sans', 'Sarabun', sans-serif" },
-                    bodyFont: { family: "'DM Sans', 'Sarabun', sans-serif" },
-                    padding: 10,
-                    cornerRadius: 8
-                }
+                legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { family: "'DM Sans', 'Sarabun', sans-serif", size: 13 } } },
+                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { family: "'DM Sans', 'Sarabun', sans-serif" }, bodyFont: { family: "'DM Sans', 'Sarabun', sans-serif" }, padding: 10, cornerRadius: 8 }
             },
             scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } }
-                },
-                y: {
-                    beginAtZero: true,
-                    border: { display: false },
-                    ticks: {
-                        stepSize: 1, // บังคับให้สเกลแกน Y แสดงเป็นจำนวนเต็ม
-                        font: { family: "'DM Sans', 'Sarabun', sans-serif" }
-                    }
-                }
+                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { beginAtZero: true, border: { display: false }, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
             },
-            interaction: {
-                mode: 'index',
-                intersect: false,
+            interaction: { mode: 'index', intersect: false }
+        }
+    });
+}
+
+// ── BDE Performance Chart ───────────────────────────────
+function renderBdeChart() {
+    const ctx = document.getElementById('bdeChart');
+    if (!ctx) return;
+
+    const bdeCounts = {};
+    contracts.forEach(c => {
+        const bdeName = (c.bde_user && c.bde_user.name) ? c.bde_user.name : (c.bde_id || 'Unknown BDE');
+        bdeCounts[bdeName] = (bdeCounts[bdeName] || 0) + 1;
+    });
+
+    const labels = Object.keys(bdeCounts).sort((a, b) => bdeCounts[b] - bdeCounts[a]);
+    const data = labels.map(l => bdeCounts[l]);
+
+    if (bdeChartInstance) bdeChartInstance.destroy();
+
+    bdeChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total Contracts',
+                data: data,
+                backgroundColor: '#3b82f6',
+                borderRadius: 4,
+                barPercentage: 0.5
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
             }
         }
     });
 }
 
+// ── Top Principles Chart ───────────────────────────────
+function renderPrincipleChart() {
+    const ctx = document.getElementById('principleChart');
+    if (!ctx) return;
+
+    const pCounts = {};
+    contracts.forEach(c => {
+        if (!c.principle) return;
+        const principles = c.principle.split(',').map(p => p.trim()).filter(p => p);
+        principles.forEach(p => {
+            pCounts[p] = (pCounts[p] || 0) + 1;
+        });
+    });
+
+    const labels = Object.keys(pCounts).sort((a, b) => pCounts[b] - pCounts[a]).slice(0, 10);
+    const data = labels.map(l => pCounts[l]);
+
+    if (principleChartInstance) principleChartInstance.destroy();
+
+    principleChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Contracts',
+                data: data,
+                backgroundColor: '#8b5cf6',
+                borderRadius: 4,
+                barPercentage: 0.6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
+            }
+        }
+    });
+}
+
+
 // ── Init ───────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    // Set tooltips for collapsed sidebar
     document.getElementById('nav-dashboard').setAttribute('data-tooltip', 'Dashboard');
     document.getElementById('nav-contracts').setAttribute('data-tooltip', 'Contracts');
 
-    // Auto-collapse sidebar on desktop by default
     if (window.innerWidth > 768) {
         sidebarCollapsed = true;
         document.body.classList.add('sidebar-collapsed');
     }
 
-    // Default active page (call after collapse so showPage doesn't undo it)
     document.getElementById('page-dashboard').style.display = 'block';
     document.getElementById('nav-dashboard').classList.add('active');
     document.getElementById('breadcrumb-current').textContent = 'Dashboard';
@@ -308,29 +432,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
 });
 
-// ── Load Customers ─────────────────────────
+// ── Load Data Functions ────────────────────
 async function loadCustomers() {
-    const { data, error } = await supabaseClient
-        .from('customers')
-        .select('customer_id, outlet_name, bde, province, region')
-        .order('outlet_name');
-
-    if (error) {
-        console.error('Load customers error:', error);
-        showToast('Load customers error: ' + error.message, 'error');
-        return;
-    }
-
+    const { data, error } = await supabaseClient.from('customers').select('customer_id, outlet_name, bde, province, region').order('outlet_name');
+    if (error) { showToast('Load customers error: ' + error.message, 'error'); return; }
     customers = data || [];
     populateCustomerDropdown();
 }
 
 function populateCustomerDropdown() {
     const sel = document.getElementById('field-customer');
-    if (tsInstances['field-customer']) {
-        tsInstances['field-customer'].destroy();
-        delete tsInstances['field-customer'];
-    }
+    if (tsInstances['field-customer']) { tsInstances['field-customer'].destroy(); delete tsInstances['field-customer']; }
     sel.innerHTML = '';
 
     const initialOptions = customers.map(c => ({
@@ -359,7 +471,6 @@ function populateCustomerDropdown() {
                     } else {
                         clearTsField('field-bde');
                     }
-                    // อัปเดตช่อง Area และ Province
                     const areaField = document.getElementById('field-area');
                     const provField = document.getElementById('field-province');
                     if (areaField) areaField.value = opt.region || '';
@@ -376,13 +487,9 @@ function populateCustomerDropdown() {
     }
 }
 
-// ── Load Users (BDE) ───────────────────────
 async function loadUsers() {
-    const { data, error } = await supabaseClient
-        .from('user_information')
-        .select('user_id, name')
-        .order('name');
-    if (error) { console.error('Load users error:', error); return; }
+    const { data, error } = await supabaseClient.from('user_information').select('user_id, name').order('name');
+    if (error) { return; }
     users = data || [];
 
     const sel = document.getElementById('field-bde');
@@ -396,21 +503,13 @@ async function loadUsers() {
 
     if (window.TomSelect) {
         if (tsInstances['field-bde']) tsInstances['field-bde'].destroy();
-        tsInstances['field-bde'] = new TomSelect('#field-bde', {
-            searchField: ['text'],
-            maxOptions: 200,
-            placeholder: 'Search BDE...',
-        });
+        tsInstances['field-bde'] = new TomSelect('#field-bde', { searchField: ['text'], maxOptions: 200, placeholder: 'Search BDE...' });
         tsInstances['field-bde'].disable();
     }
 }
 
-// ── Tom Select Creatable ───────────────────
 async function initCreatableFields() {
-    const { data } = await supabaseClient
-        .from('contract')
-        .select('principle, brands, promotion, trade_deal');
-
+    const { data } = await supabaseClient.from('contract').select('principle, brands, promotion, trade_deal');
     window._creatableOptions = {
         principle: collectOptions(data, 'principle'),
         brands: collectOptions(data, 'brands'),
@@ -431,12 +530,7 @@ async function initCreatableFields() {
         if (el.tomselect) { el.tomselect.destroy(); }
         tsInstances[id] = new TomSelect(el, {
             options: window._creatableOptions[field],
-            items: [],
-            create: true,
-            createOnBlur: true,
-            persist: true,
-            maxItems: 1,
-            placeholder,
+            items: [], create: true, createOnBlur: true, persist: true, maxItems: 1, placeholder,
             render: {
                 option_create: (data) => `<div class="create">Add "<strong>${data.input}</strong>"</div>`,
                 no_results: () => `<div class="no-results">No results found — Press Enter to add</div>`,
@@ -449,92 +543,54 @@ function collectOptions(data, field) {
     const set = new Set();
     (data || []).forEach(r => {
         if (r[field]) {
-            r[field].split(',').forEach(v => {
-                const t = v.trim();
-                if (t) set.add(t);
-            });
+            r[field].split(',').forEach(v => { const t = v.trim(); if (t) set.add(t); });
         }
     });
     return [...set].sort().map(v => ({ value: v, text: v }));
 }
 
-// ── Backfill missing contract_group_id ────
 async function backfillMarketingGroupIds() {
-    const { data, error } = await supabaseClient
-        .from('contract')
-        .select('id, customer_id, bde_id, start_date, end_date, contract_group_id')
-        .eq('contract_type', 'Marketing')
-        .is('contract_group_id', null);
-
+    const { data, error } = await supabaseClient.from('contract').select('id, customer_id, bde_id, start_date, end_date, contract_group_id').eq('contract_type', 'Marketing').is('contract_group_id', null);
     if (error || !data || data.length === 0) return;
-
     const groups = {};
     data.forEach(r => {
         const key = [r.customer_id, r.bde_id || '', r.start_date || '', r.end_date || ''].join('|');
         if (!groups[key]) groups[key] = [];
         groups[key].push(r.id);
     });
-
     const updates = [];
     Object.values(groups).forEach(ids => {
         const gid = crypto.randomUUID();
         ids.forEach(id => updates.push({ id, contract_group_id: gid }));
     });
-
     if (updates.length === 0) return;
-
     for (let i = 0; i < updates.length; i += 50) {
-        await supabaseClient
-            .from('contract')
-            .upsert(updates.slice(i, i + 50), { onConflict: 'id' });
+        await supabaseClient.from('contract').upsert(updates.slice(i, i + 50), { onConflict: 'id' });
     }
 }
 
-// ── Load Contracts ─────────────────────────
 async function loadContracts() {
     showTableLoading(true);
-
-    let query = supabaseClient
-        .from('contract')
-        .select(`
-      *,
-      customer:customers!contract_customer_id_fkey (
-        customer_id,
-        outlet_name,
-        province,
-        region,
-        company_name
-      ),
-      bde_user:user_information!contract_bde_id_fkey (
-        user_id,
-        name
-      )
-    `);
-
-    if (searchQuery) {
-        query = query.or(`contract_id.ilike.%${searchQuery}%,promotion.ilike.%${searchQuery}%,principle.ilike.%${searchQuery}%`);
-    }
-    if (filterStatus) {
-        query = query.eq('period', filterStatus);
-    }
-    if (filterType) {
-        query = query.eq('contract_type', filterType);
-    }
+    let query = supabaseClient.from('contract').select(`*, customer:customers!contract_customer_id_fkey (customer_id, outlet_name, province, region, company_name), bde_user:user_information!contract_bde_id_fkey (user_id, name)`);
+    if (searchQuery) query = query.or(`contract_id.ilike.%${searchQuery}%,promotion.ilike.%${searchQuery}%,principle.ilike.%${searchQuery}%`);
+    if (filterStatus) query = query.eq('period', filterStatus);
+    if (filterType) query = query.eq('contract_type', filterType);
 
     query = query.order('created_at', { ascending: true });
 
     const { data, error } = await query;
     showTableLoading(false);
-
     if (error) { showToast('Failed to load data: ' + error.message, 'error'); return; }
 
     contracts = data || [];
     renderTable();
     updateStats();
 
-    // Re-render dashboard if it's currently visible
     if (document.getElementById('page-dashboard').style.display !== 'none') {
-        renderDashboard();
+        const activeView = document.getElementById('dashboard-view-selector').value;
+        if (activeView === 'overview') renderDashboard();
+        else if (activeView === 'bde') renderBdeChart();
+        else if (activeView === 'brands') renderPrincipleChart();
     }
 }
 
@@ -550,38 +606,25 @@ function renderTable() {
     const tbody = document.getElementById('contracts-tbody');
     if (contracts.length === 0) {
         tbody.innerHTML = `<tr><td colspan="18" class="empty-state">No contracts found.</td></tr>`;
-        totalCount = 0;
-        renderPagination();
-        return;
+        totalCount = 0; renderPagination(); return;
     }
-
     const rows = [];
     const groupMap = {};
-
     contracts.forEach(c => {
         if (c.contract_type === 'Marketing') {
             const groupKey = c.contract_group_id || getGroupKey(c);
-            if (groupMap[groupKey] !== undefined) {
-                rows[groupMap[groupKey]].lines.push(c);
-            } else {
-                groupMap[groupKey] = rows.length;
-                rows.push({ type: 'marketing-group', groupId: groupKey, header: c, lines: [c] });
-            }
+            if (groupMap[groupKey] !== undefined) rows[groupMap[groupKey]].lines.push(c);
+            else { groupMap[groupKey] = rows.length; rows.push({ type: 'marketing-group', groupId: groupKey, header: c, lines: [c] }); }
         } else {
             rows.push({ type: 'yearly', contract: c });
         }
     });
 
-    let mCount = 1;
-    let yCount = 1;
-    rows.forEach(row => {
-        if (row.type === 'marketing-group') row.no = mCount++;
-        else row.no = yCount++;
-    });
+    let mCount = 1, yCount = 1;
+    rows.forEach(row => { if (row.type === 'marketing-group') row.no = mCount++; else row.no = yCount++; });
 
     totalCount = rows.length;
     renderPagination();
-
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const pageRows = rows.slice(startIndex, startIndex + PAGE_SIZE);
 
@@ -590,42 +633,29 @@ function renderTable() {
         if (row.type === 'yearly') html += renderYearlyRow(row.contract, row.no);
         else html += renderMarketingGroup(row, row.no);
     });
-
     tbody.innerHTML = html;
 }
 
 function renderYearlyRow(c, no) {
     const customer = c.customer || {};
     const bdeUser = c.bde_user || {};
-    const area = customer.region || '—';
-    const province = customer.province || '—';
-    const startFmt = c.start_date ? formatDate(c.start_date) : '—';
-    const endFmt = c.end_date ? formatDate(c.end_date) : '—';
-    const received = c.created_at ? formatMonthYear(c.created_at) : '—';
-
     return `
     <tr class="table-row" data-id="${c.id}">
-      <td class="col-no">
-        <div class="no-wrapper">
-          <div class="no-icon-slot"></div> <span style="font-weight: 500; color: var(--text);">${no}</span>
-        </div>
-      </td>
+      <td class="col-no"><div class="no-wrapper"><div class="no-icon-slot"></div> <span style="font-weight: 500; color: var(--text);">${no}</span></div></td>
       <td class="col-code">${escHtml(customer.customer_id || c.customer_id || '—')}</td>
       <td class="col-company">${escHtml(customer.company_name || customer.company || '—')}</td>
       <td class="col-outlet">${escHtml(customer.outlet_name || '—')}</td>
-      <td class="col-area">${escHtml(area)}</td>
-      <td class="col-province">${escHtml(province)}</td>
+      <td class="col-area">${escHtml(customer.region || '—')}</td>
+      <td class="col-province">${escHtml(customer.province || '—')}</td>
       <td class="col-type"><span class="type-badge type-yearly">Yearly</span></td>
       <td class="col-promo">${escHtml(c.promotion || '—')}</td>
       <td class="col-trade">${escHtml(c.trade_deal || '—')}</td>
       <td class="col-bde">${escHtml(bdeUser.name || c.bde_id || '—')}</td>
-      <td class="col-start">${startFmt}</td>
-      <td class="col-end">${endFmt}</td>
+      <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
+      <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
       <td class="col-remark">${escHtml(c.support || '—')}</td>
-      <td class="col-received">${received}</td>
-      <td class="col-status">
-        <span class="badge ${getStatusBadge(c.period)}">${escHtml(c.period || 'Active')}</span>
-      </td>
+      <td class="col-received">${c.created_at ? formatMonthYear(c.created_at) : '—'}</td>
+      <td class="col-status"><span class="badge ${getStatusBadge(c.period)}">${escHtml(c.period || 'Active')}</span></td>
       <td class="col-principle">${escHtml(c.principle || '—')}</td>
       <td class="col-brand">${escHtml(c.brands || '—')}</td>
       <td class="col-actions">
@@ -639,49 +669,28 @@ function renderMarketingGroup(row, no) {
     const c = row.header;
     const customer = c.customer || {};
     const bdeUser = c.bde_user || {};
-    const area = customer.region || '—';
-    const province = customer.province || '—';
-    const startFmt = c.start_date ? formatDate(c.start_date) : '—';
-    const endFmt = c.end_date ? formatDate(c.end_date) : '—';
-    const received = c.created_at ? formatMonthYear(c.created_at) : '—';
-    const lineCount = row.lines.length;
     const gid = escHtml(row.groupId);
-
-    const principles = c.principle || '—';
-    const brands = c.brands || '—';
-    const promos = c.promotion || '—';
-    const trades = c.trade_deal || '—';
-
-    const expandBtn = lineCount > 1
-        ? `<button class="btn-expand" id="expand-btn-${gid}" onclick="toggleGroup('${gid}')" title="View Lines">${icons.chevronRight}</button>`
-        : ``;
+    const expandBtn = row.lines.length > 1 ? `<button class="btn-expand" id="expand-btn-${gid}" onclick="toggleGroup('${gid}')" title="View Lines">${icons.chevronRight}</button>` : ``;
 
     let html = `
     <tr class="table-row marketing-group-header" data-group="${gid}">
-      <td class="col-no">
-        <div class="no-wrapper">
-          <div class="no-icon-slot">${expandBtn}</div>
-          <span style="font-weight: 500; color: var(--text);">${no}</span>
-        </div>
-      </td>
+      <td class="col-no"><div class="no-wrapper"><div class="no-icon-slot">${expandBtn}</div><span style="font-weight: 500; color: var(--text);">${no}</span></div></td>
       <td class="col-code">${escHtml(customer.customer_id || c.customer_id || '—')}</td>
       <td class="col-company">${escHtml(customer.company_name || customer.company || '—')}</td>
       <td class="col-outlet">${escHtml(customer.outlet_name || '—')}</td>
-      <td class="col-area">${escHtml(area)}</td>
-      <td class="col-province">${escHtml(province)}</td>
+      <td class="col-area">${escHtml(customer.region || '—')}</td>
+      <td class="col-province">${escHtml(customer.province || '—')}</td>
       <td class="col-type"><span class="type-badge type-marketing">Marketing</span></td>
-      <td class="col-promo" title="${escHtml(promos)}">${escHtml(truncate(promos, 20))}</td>
-      <td class="col-trade" title="${escHtml(trades)}">${escHtml(truncate(trades, 20))}</td>
+      <td class="col-promo" title="${escHtml(c.promotion || '—')}">${escHtml(truncate(c.promotion || '—', 20))}</td>
+      <td class="col-trade" title="${escHtml(c.trade_deal || '—')}">${escHtml(truncate(c.trade_deal || '—', 20))}</td>
       <td class="col-bde">${escHtml(bdeUser.name || c.bde_id || '—')}</td>
-      <td class="col-start">${startFmt}</td>
-      <td class="col-end">${endFmt}</td>
+      <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
+      <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
       <td class="col-remark">${escHtml(c.support || '—')}</td>
-      <td class="col-received">${received}</td>
-      <td class="col-status">
-        <span class="badge ${getStatusBadge(c.period)}">${escHtml(c.period || 'Active')}</span>
-      </td>
-      <td class="col-principle" title="${escHtml(principles)}">${escHtml(truncate(principles, 20))}</td>
-      <td class="col-brand" title="${escHtml(brands)}">${escHtml(truncate(brands, 20))}</td>
+      <td class="col-received">${c.created_at ? formatMonthYear(c.created_at) : '—'}</td>
+      <td class="col-status"><span class="badge ${getStatusBadge(c.period)}">${escHtml(c.period || 'Active')}</span></td>
+      <td class="col-principle" title="${escHtml(c.principle || '—')}">${escHtml(truncate(c.principle || '—', 20))}</td>
+      <td class="col-brand" title="${escHtml(c.brands || '—')}">${escHtml(truncate(c.brands || '—', 20))}</td>
       <td class="col-actions">
         <button class="btn-icon btn-edit" onclick="openEditMarketingGroup('${gid}')" title="Edit Primary Record">${icons.edit}</button>
         <button class="btn-icon btn-delete" onclick="confirmDeleteGroup('${gid}', '${escHtml(customer.outlet_name || '')}')" title="Delete Group">${icons.trash}</button>
@@ -689,35 +698,23 @@ function renderMarketingGroup(row, no) {
     </tr>`;
 
     row.lines.slice(1).forEach((line, idx) => {
-        const lineBde = (line.bde_user && line.bde_user.name) || line.bde_id || '—';
-        const lineStartFmt = line.start_date ? formatDate(line.start_date) : '—';
-        const lineEndFmt = line.end_date ? formatDate(line.end_date) : '—';
-        const lineReceived = line.created_at ? formatMonthYear(line.created_at) : '—';
-
         html += `
     <tr class="table-row marketing-line-row" id="line-row-${gid}-${idx}" style="display:none;" data-group="${gid}">
-      <td class="col-no">
-         <div class="no-wrapper line-indent" style="color: var(--text-3);">
-            <div class="no-icon-slot" style="font-size: 13px;">└</div>
-            <span></span>
-         </div>
-      </td>
+      <td class="col-no"><div class="no-wrapper line-indent" style="color: var(--text-3);"><div class="no-icon-slot" style="font-size: 13px;">└</div><span></span></div></td>
       <td class="col-code" style="color: var(--text-3); font-weight: normal;">${escHtml(customer.customer_id || line.customer_id || '—')}</td>
       <td class="col-company" style="color: var(--text-3);">${escHtml(customer.company_name || customer.company || '—')}</td>
       <td class="col-outlet" style="color: var(--text-3);">${escHtml(customer.outlet_name || '—')}</td>
-      <td class="col-area" style="color: var(--text-3);">${escHtml(area)}</td>
-      <td class="col-province" style="color: var(--text-3);">${escHtml(province)}</td>
+      <td class="col-area" style="color: var(--text-3);">${escHtml(customer.region || '—')}</td>
+      <td class="col-province" style="color: var(--text-3);">${escHtml(customer.province || '—')}</td>
       <td class="col-type"><span class="type-badge type-marketing">Marketing</span></td>
       <td class="col-promo">${escHtml(line.promotion || '—')}</td>
       <td class="col-trade">${escHtml(line.trade_deal || '—')}</td>
-      <td class="col-bde">${escHtml(lineBde)}</td>
-      <td class="col-start">${lineStartFmt}</td>
-      <td class="col-end">${lineEndFmt}</td>
+      <td class="col-bde">${escHtml((line.bde_user && line.bde_user.name) || line.bde_id || '—')}</td>
+      <td class="col-start">${line.start_date ? formatDate(line.start_date) : '—'}</td>
+      <td class="col-end">${getEndColumnHtml(line.end_date)}</td>
       <td class="col-remark">${escHtml(line.support || '—')}</td>
-      <td class="col-received">${lineReceived}</td>
-      <td class="col-status">
-        <span class="badge ${getStatusBadge(line.period)}">${escHtml(line.period || 'Active')}</span>
-      </td>
+      <td class="col-received">${line.created_at ? formatMonthYear(line.created_at) : '—'}</td>
+      <td class="col-status"><span class="badge ${getStatusBadge(line.period)}">${escHtml(line.period || 'Active')}</span></td>
       <td class="col-principle">${escHtml(line.principle || '—')}</td>
       <td class="col-brand">${escHtml(line.brands || '—')}</td>
       <td class="col-actions">
@@ -726,7 +723,6 @@ function renderMarketingGroup(row, no) {
       </td>
     </tr>`;
     });
-
     return html;
 }
 
@@ -738,35 +734,38 @@ function toggleGroup(groupId) {
     lineRows.forEach(r => r.style.display = isOpen ? '' : 'none');
 }
 
-function truncate(str, len) {
-    if (!str || str.length <= len) return str;
-    return str.slice(0, len) + '…';
-}
+function truncate(str, len) { if (!str || str.length <= len) return str; return str.slice(0, len) + '…'; }
+function getStatusBadge(period) { if (!period || period === 'Active') return 'badge-active'; if (period === 'Inactive') return 'badge-inactive'; return 'badge-default'; }
+function formatDate(dateStr) { if (!dateStr) return '—'; const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }); }
+function formatMonthYear(dateStr) { if (!dateStr) return '—'; const d = new Date(dateStr); return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }).replace(' ', '-'); }
+function escHtml(str) { if (!str) return ''; return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-function getStatusBadge(period) {
-    if (!period || period === 'Active') return 'badge-active';
-    if (period === 'Inactive') return 'badge-inactive';
-    return 'badge-default';
-}
-
-function formatDate(dateStr) {
+function getEndColumnHtml(dateStr) {
     if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+
+    const formattedDate = formatDate(dateStr);
+
+    const endDate = new Date(dateStr);
+    endDate.setHours(23, 59, 59, 999);
+    const today = new Date();
+
+    const diffTime = endDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    let expireHtml = '';
+    if (diffDays < 0) {
+        expireHtml = `<div class="expire-text expire-danger">Expired</div>`;
+    } else if (diffDays === 0) {
+        expireHtml = `<div class="expire-text expire-danger">Expires Today</div>`;
+    } else if (diffDays <= 30) {
+        expireHtml = `<div class="expire-text expire-warning">${diffDays} days left</div>`;
+    } else {
+        expireHtml = `<div class="expire-text expire-safe">${diffDays} days left</div>`;
+    }
+
+    return `<div>${formattedDate}</div>${expireHtml}`;
 }
 
-function formatMonthYear(dateStr) {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }).replace(' ', '-');
-}
-
-function escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// ── Pagination ─────────────────────────────
 function renderPagination() {
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
     const el = document.getElementById('pagination');
@@ -782,8 +781,7 @@ function renderPagination() {
     el.appendChild(prev);
     for (let p = Math.max(1, currentPage - 2); p <= Math.min(totalPages, currentPage + 2); p++) {
         const btn = document.createElement('button');
-        btn.textContent = p;
-        btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
+        btn.textContent = p; btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
         btn.onclick = () => { currentPage = p; renderTable(); };
         el.appendChild(btn);
     }
@@ -793,93 +791,38 @@ function renderPagination() {
     el.appendChild(next);
 }
 
-// ── Stats ──────────────────────────────────
 function updateStats() {
-    let totalGroups = 0;
-    let activeGroups = 0;
-    let inactiveGroups = 0;
-    let marketingGroups = 0;
-    let yearlyGroups = 0;
+    let totalGroups = 0, activeGroups = 0, inactiveGroups = 0, marketingGroups = 0, yearlyGroups = 0;
     const groupMap = new Set();
-
     contracts.forEach(c => {
         if (c.contract_type === 'Marketing') {
             const key = c.contract_group_id || getGroupKey(c);
-            if (!groupMap.has(key)) {
-                groupMap.add(key);
-                totalGroups++;
-                marketingGroups++;
-                if (c.period === 'Active' || !c.period) activeGroups++;
-                else if (c.period === 'Inactive') inactiveGroups++;
-            }
-        } else {
-            totalGroups++;
-            yearlyGroups++;
-            if (c.period === 'Active' || !c.period) activeGroups++;
-            else if (c.period === 'Inactive') inactiveGroups++;
-        }
+            if (!groupMap.has(key)) { groupMap.add(key); totalGroups++; marketingGroups++; if (c.period === 'Active' || !c.period) activeGroups++; else if (c.period === 'Inactive') inactiveGroups++; }
+        } else { totalGroups++; yearlyGroups++; if (c.period === 'Active' || !c.period) activeGroups++; else if (c.period === 'Inactive') inactiveGroups++; }
     });
-
     document.getElementById('stat-total').textContent = totalGroups;
     document.getElementById('stat-active').textContent = activeGroups;
     document.getElementById('stat-inactive').textContent = inactiveGroups;
     document.getElementById('stat-marketing').textContent = marketingGroups;
     document.getElementById('stat-yearly').textContent = yearlyGroups;
-
-    // Header mini stats
-    const hActive = document.getElementById('h-active');
-    const hInactive = document.getElementById('h-inactive');
+    const hActive = document.getElementById('h-active'), hInactive = document.getElementById('h-inactive'), navBadge = document.getElementById('nav-badge-contracts');
     if (hActive) hActive.textContent = activeGroups;
     if (hInactive) hInactive.textContent = inactiveGroups;
-
-    // Nav badge
-    const navBadge = document.getElementById('nav-badge-contracts');
     if (navBadge) navBadge.textContent = totalGroups;
 }
 
-// ── Tom Select helpers ─────────────────────
-function getTsValue(id) {
-    const ts = tsInstances[id];
-    if (ts) return ts.getValue() || '';
-    const el = document.getElementById(id);
-    return el ? el.value : '';
-}
+function getTsValue(id) { const ts = tsInstances[id]; if (ts) return ts.getValue() || ''; const el = document.getElementById(id); return el ? el.value : ''; }
+function setTsValue(id, value) { const ts = tsInstances[id]; if (!ts) { setField(id, value); return; } if (value) { if (!ts.options[value]) ts.addOption({ value, text: value }); ts.setValue(value, true); } else { ts.clear(true); } }
+function clearTsField(id) { const ts = tsInstances[id]; if (ts) ts.clear(true); else setField(id, ''); }
+function setField(id, value) { const el = document.getElementById(id); if (el) el.value = value; }
 
-function setTsValue(id, value) {
-    const ts = tsInstances[id];
-    if (!ts) { setField(id, value); return; }
-    if (value) {
-        if (!ts.options[value]) ts.addOption({ value, text: value });
-        ts.setValue(value, true);
-    } else {
-        ts.clear(true);
-    }
-}
-
-function clearTsField(id) {
-    const ts = tsInstances[id];
-    if (ts) ts.clear(true);
-    else setField(id, '');
-}
-
-function setField(id, value) {
-    const el = document.getElementById(id);
-    if (el) el.value = value;
-}
-
-// ── Modal open ─────────────────────────────
 function openAddModal() {
     editingId = null;
     document.getElementById('modal-title').textContent = 'Add New Contract';
     document.getElementById('contract-form').reset();
     ['field-customer', 'field-bde', 'field-principle', 'field-brands', 'field-promotion', 'field-trade-deal'].forEach(clearTsField);
-
-    // เคลียร์ฟิลด์ Area, Province
-    const areaField = document.getElementById('field-area');
-    const provField = document.getElementById('field-province');
-    if (areaField) areaField.value = '';
-    if (provField) provField.value = '';
-
+    const areaField = document.getElementById('field-area'), provField = document.getElementById('field-province');
+    if (areaField) areaField.value = ''; if (provField) provField.value = '';
     document.getElementById('modal-overlay').classList.add('active');
 }
 
@@ -887,17 +830,12 @@ async function openEditModal(id) {
     editingId = id;
     const contract = contracts.find(c => c.id === id);
     if (!contract) return;
-
     document.getElementById('modal-title').textContent = 'Edit Contract';
     setTsValue('field-customer', contract.customer_id);
-
-    // โหลด Area, Province ของ Outlet ปัจจุบันมาแสดง
     const cust = customers.find(c => String(c.customer_id) === String(contract.customer_id));
-    const areaField = document.getElementById('field-area');
-    const provField = document.getElementById('field-province');
+    const areaField = document.getElementById('field-area'), provField = document.getElementById('field-province');
     if (areaField) areaField.value = cust ? (cust.region || '') : '';
     if (provField) provField.value = cust ? (cust.province || '') : '';
-
     setField('field-contract-type', contract.contract_type || '');
     setTsValue('field-promotion', contract.promotion || '');
     setTsValue('field-trade-deal', contract.trade_deal || '');
@@ -908,30 +846,19 @@ async function openEditModal(id) {
     setField('field-status', contract.period || 'Active');
     setTsValue('field-principle', contract.principle || '');
     setTsValue('field-brands', contract.brands || '');
-
     document.getElementById('modal-overlay').classList.add('active');
 }
 
 async function openEditMarketingGroup(groupId) {
-    const contract = contracts.find(c =>
-        c.contract_type === 'Marketing' &&
-        (c.contract_group_id === groupId || getGroupKey(c) === groupId)
-    );
+    const contract = contracts.find(c => c.contract_type === 'Marketing' && (c.contract_group_id === groupId || getGroupKey(c) === groupId));
     if (!contract) return;
-
-    editingId = contract.id;
-    editingGroupId = groupId;
-
+    editingId = contract.id; editingGroupId = groupId;
     document.getElementById('modal-title').textContent = 'Edit Marketing Contract';
     setTsValue('field-customer', contract.customer_id);
-
-    // โหลด Area, Province ของ Outlet ปัจจุบันมาแสดง
     const cust = customers.find(c => String(c.customer_id) === String(contract.customer_id));
-    const areaField = document.getElementById('field-area');
-    const provField = document.getElementById('field-province');
+    const areaField = document.getElementById('field-area'), provField = document.getElementById('field-province');
     if (areaField) areaField.value = cust ? (cust.region || '') : '';
     if (provField) provField.value = cust ? (cust.province || '') : '';
-
     setField('field-contract-type', contract.contract_type || 'Marketing');
     setTsValue('field-promotion', contract.promotion || '');
     setTsValue('field-trade-deal', contract.trade_deal || '');
@@ -942,98 +869,41 @@ async function openEditMarketingGroup(groupId) {
     setField('field-status', contract.period || 'Active');
     setTsValue('field-principle', contract.principle || '');
     setTsValue('field-brands', contract.brands || '');
-
     document.getElementById('modal-overlay').classList.add('active');
 }
 
-function closeModal() {
-    document.getElementById('modal-overlay').classList.remove('active');
-    editingId = null;
-    editingGroupId = null;
-}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); editingId = null; editingGroupId = null; }
 
-// ── Save Contract ──────────────────────────
 async function saveContract() {
     const customerId = getTsValue('field-customer');
     if (!customerId) { showToast('Please select an Outlet.', 'error'); return; }
-
-    const btn = document.getElementById('btn-save');
-    btn.disabled = true;
-
+    const btn = document.getElementById('btn-save'); btn.disabled = true;
     try {
         const payload = {
-            customer_id: customerId,
-            contract_type: document.getElementById('field-contract-type').value || 'Yearly',
-            promotion: getTsValue('field-promotion'),
-            trade_deal: getTsValue('field-trade-deal'),
-            bde_id: getTsValue('field-bde') || null,
-            start_date: document.getElementById('field-start').value || null,
-            end_date: document.getElementById('field-end').value || null,
-            support: document.getElementById('field-remark').value,
-            period: document.getElementById('field-status').value,
-            principle: getTsValue('field-principle'),
-            brands: getTsValue('field-brands'),
-            updated_at: new Date().toISOString(),
+            customer_id: customerId, contract_type: document.getElementById('field-contract-type').value || 'Yearly',
+            promotion: getTsValue('field-promotion'), trade_deal: getTsValue('field-trade-deal'),
+            bde_id: getTsValue('field-bde') || null, start_date: document.getElementById('field-start').value || null, end_date: document.getElementById('field-end').value || null,
+            support: document.getElementById('field-remark').value, period: document.getElementById('field-status').value,
+            principle: getTsValue('field-principle'), brands: getTsValue('field-brands'), updated_at: new Date().toISOString(),
         };
-
         let error;
-        if (editingId) {
-            ({ error } = await supabaseClient.from('contract').update(payload).eq('id', editingId));
-        } else {
-            payload.contract_id = 'CT-' + Date.now();
-            payload.created_at = new Date().toISOString();
-            ({ error } = await supabaseClient.from('contract').insert(payload));
-        }
-
+        if (editingId) { ({ error } = await supabaseClient.from('contract').update(payload).eq('id', editingId)); }
+        else { payload.contract_id = 'CT-' + Date.now(); payload.created_at = new Date().toISOString(); ({ error } = await supabaseClient.from('contract').insert(payload)); }
         if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
         showToast(editingId ? 'Contract updated successfully' : 'Contract added successfully', 'success');
-
-        destroyCreatableFields();
-        closeModal();
-        await loadContracts();
-        await initCreatableFields();
-    } finally {
-        btn.disabled = false;
-    }
+        destroyCreatableFields(); closeModal(); await loadContracts(); await initCreatableFields();
+    } finally { btn.disabled = false; }
 }
 
-function destroyCreatableFields() {
-    ['field-principle', 'field-brands', 'field-promotion', 'field-trade-deal'].forEach(id => {
-        const ts = tsInstances[id];
-        if (ts) { ts.destroy(); delete tsInstances[id]; }
-    });
-}
+function destroyCreatableFields() { ['field-principle', 'field-brands', 'field-promotion', 'field-trade-deal'].forEach(id => { const ts = tsInstances[id]; if (ts) { ts.destroy(); delete tsInstances[id]; } }); }
 
-// ── Delete ─────────────────────────────────
-let deleteTargetId = null;
-let deleteTargetGroup = null;
-
-function confirmDelete(id, name) {
-    deleteTargetId = id;
-    deleteTargetGroup = null;
-    document.getElementById('delete-name').textContent = name;
-    document.getElementById('delete-modal').classList.add('active');
-}
-
-function confirmDeleteGroup(groupId, name) {
-    deleteTargetId = null;
-    deleteTargetGroup = groupId;
-    document.getElementById('delete-name').textContent = name + ' (Marketing Group)';
-    document.getElementById('delete-modal').classList.add('active');
-}
-
-function closeDeleteModal() {
-    document.getElementById('delete-modal').classList.remove('active');
-    deleteTargetId = null;
-    deleteTargetGroup = null;
-}
-
+let deleteTargetId = null; let deleteTargetGroup = null;
+function confirmDelete(id, name) { deleteTargetId = id; deleteTargetGroup = null; document.getElementById('delete-name').textContent = name; document.getElementById('delete-modal').classList.add('active'); }
+function confirmDeleteGroup(groupId, name) { deleteTargetId = null; deleteTargetGroup = groupId; document.getElementById('delete-name').textContent = name + ' (Marketing Group)'; document.getElementById('delete-modal').classList.add('active'); }
+function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('active'); deleteTargetId = null; deleteTargetGroup = null; }
 async function executeDelete() {
     if (deleteTargetGroup) {
-        const ids = contracts
-            .filter(c => c.contract_type === 'Marketing' && (c.contract_group_id === deleteTargetGroup || getGroupKey(c) === deleteTargetGroup))
-            .map(c => c.id);
-
+        const ids = contracts.filter(c => c.contract_type === 'Marketing' && (c.contract_group_id === deleteTargetGroup || getGroupKey(c) === deleteTargetGroup)).map(c => c.id);
         const { error } = await supabaseClient.from('contract').delete().in('id', ids);
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
         showToast('Marketing Group deleted', 'success');
@@ -1042,49 +912,30 @@ async function executeDelete() {
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
         showToast('Contract deleted', 'success');
     }
-    closeDeleteModal();
-    await loadContracts();
+    closeDeleteModal(); await loadContracts();
 }
 
-// ── Search & Filter ────────────────────────
 function setupEventListeners() {
-    document.getElementById('search-input').addEventListener('input', debounce(e => {
-        searchQuery = e.target.value.trim();
-        currentPage = 1;
-        loadContracts();
-    }, 400));
+    document.getElementById('search-input').addEventListener('input', debounce(e => { searchQuery = e.target.value.trim(); currentPage = 1; loadContracts(); }, 400));
+    document.getElementById('filter-status').addEventListener('change', e => { filterStatus = e.target.value; currentPage = 1; loadContracts(); });
+    document.getElementById('filter-type').addEventListener('change', e => { filterType = e.target.value; currentPage = 1; loadContracts(); });
+    document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === document.getElementById('modal-overlay')) closeModal(); });
 
-    document.getElementById('filter-status').addEventListener('change', e => {
-        filterStatus = e.target.value;
-        currentPage = 1;
-        loadContracts();
+    // Event listener for Dashboard Views
+    document.getElementById('dashboard-view-selector').addEventListener('change', e => {
+        const view = e.target.value;
+        document.querySelectorAll('.dashboard-view').forEach(el => el.style.display = 'none');
+        document.getElementById('view-' + view).style.display = 'block';
+
+        if (view === 'overview') renderDashboard();
+        else if (view === 'bde') renderBdeChart();
+        else if (view === 'brands') renderPrincipleChart();
     });
 
-    document.getElementById('filter-type').addEventListener('change', e => {
-        filterType = e.target.value;
-        currentPage = 1;
-        loadContracts();
-    });
-
-    document.getElementById('modal-overlay').addEventListener('click', e => {
-        if (e.target === document.getElementById('modal-overlay')) closeModal();
-    });
+    // Event listener for Trend Chart Date Period
+    document.getElementById('trend-period-selector').addEventListener('change', renderTrendChart);
 }
 
-// ── UI Helpers ─────────────────────────────
-function showTableLoading(show) {
-    const el = document.getElementById('table-loading');
-    if (el) el.style.display = show ? 'flex' : 'none';
-}
-
-function showToast(msg, type = 'info') {
-    const toast = document.getElementById('toast');
-    toast.textContent = msg;
-    toast.className = `toast toast-${type} show`;
-    setTimeout(() => toast.classList.remove('show'), 3000);
-}
-
-function debounce(fn, delay) {
-    let t;
-    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
-}
+function showTableLoading(show) { const el = document.getElementById('table-loading'); if (el) el.style.display = show ? 'flex' : 'none'; }
+function showToast(msg, type = 'info') { const toast = document.getElementById('toast'); toast.textContent = msg; toast.className = `toast toast-${type} show`; setTimeout(() => toast.classList.remove('show'), 3000); }
+function debounce(fn, delay) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; }
