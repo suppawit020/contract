@@ -13,9 +13,8 @@
 
         <link rel="stylesheet" href="style.css" />
     </head>
-    <body>
+    <body class="sidebar-collapsed">
 
-        <!-- ── Sidebar ── -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
                 <div class="sidebar-logo-icon">
@@ -76,14 +75,11 @@
             </div>
         </aside>
 
-        <!-- ── Sidebar Overlay (mobile) ── -->
         <div class="sidebar-overlay" id="sidebar-overlay"
             onclick="closeSidebar()"></div>
 
-        <!-- ── Main Wrapper ── -->
         <div class="layout-wrapper" id="layout-wrapper">
 
-            <!-- ── Top Header ── -->
             <header class="header">
                 <div class="header-left">
                     <button class="btn-menu" id="btn-menu"
@@ -118,7 +114,6 @@
                 </div>
             </header>
 
-            <!-- ── Page: Dashboard ── -->
             <main class="main page-content" id="page-dashboard">
 
                 <div class="page-heading">
@@ -207,7 +202,6 @@
                     </div>
                 </div>
 
-                <!-- Dashboard Charts Row -->
                 <div class="dashboard-grid">
                     <div class="dash-card">
                         <div class="dash-card-header">
@@ -241,7 +235,6 @@
 
             </main>
 
-            <!-- ── Page: Contracts ── -->
             <main class="main page-content" id="page-contracts"
                 style="display:none;">
 
@@ -334,10 +327,7 @@
 
             </main>
 
-        </div><!-- /.layout-wrapper -->
-
-        <!-- ── Add/Edit Modal ── -->
-        <div class="modal-overlay" id="modal-overlay">
+        </div><div class="modal-overlay" id="modal-overlay">
             <div class="modal">
                 <div class="modal-header">
                     <h2 id="modal-title">Add New Contract</h2>
@@ -445,7 +435,6 @@
             </div>
         </div>
 
-        <!-- ── Delete Modal ── -->
         <div class="delete-modal-overlay" id="delete-modal">
             <div class="delete-modal">
                 <div class="delete-icon">
