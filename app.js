@@ -31,7 +31,7 @@ let marketingLines = [];
 let linesTsInstances = {};
 
 // ── Sidebar & Navigation ───────────────────
-let sidebarCollapsed = false;
+let sidebarCollapsed = true;
 
 function toggleSidebar() {
     const isMobile = window.innerWidth <= 768;
@@ -41,6 +41,9 @@ function toggleSidebar() {
         sidebar.classList.toggle('mobile-open');
         overlay.classList.toggle('mobile-open');
     } else {
+        // Remove inline style so CSS class takes over
+        document.getElementById('sidebar').style.width = '';
+        document.getElementById('layout-wrapper').style.marginLeft = '';
         sidebarCollapsed = !sidebarCollapsed;
         document.body.classList.toggle('sidebar-collapsed', sidebarCollapsed);
     }
@@ -210,12 +213,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nav-dashboard').setAttribute('data-tooltip', 'Dashboard');
     document.getElementById('nav-contracts').setAttribute('data-tooltip', 'Contracts');
 
-    // Default active page
-    showPage('dashboard');
+    // Auto-collapse sidebar on desktop by default
+    if (window.innerWidth > 768) {
+        sidebarCollapsed = true;
+        document.body.classList.add('sidebar-collapsed');
+    }
+
+    // Default active page (call after collapse so showPage doesn't undo it)
+    document.getElementById('page-dashboard').style.display = 'block';
+    document.getElementById('nav-dashboard').classList.add('active');
+    document.getElementById('breadcrumb-current').textContent = 'Dashboard';
 
     await Promise.all([loadCustomers(), loadUsers(), initCreatableFields()]);
     await backfillMarketingGroupIds();
     await loadContracts();
+    renderDashboard();
     setupEventListeners();
 });
 
@@ -397,7 +409,9 @@ async function loadContracts() {
       customer:customers!contract_customer_id_fkey (
         customer_id,
         outlet_name,
-        province
+        province,
+        region,
+        company_name
       ),
       bde_user:user_information!contract_bde_id_fkey (
         user_id,
@@ -541,8 +555,8 @@ function renderMarketingGroup(row, no) {
     const lineCount = row.lines.length;
     const gid = escHtml(row.groupId);
 
-    const principles = [...new Set(row.lines.map(l => l.principle).filter(Boolean))].join(', ') || '—';
-    const brands = [...new Set(row.lines.map(l => l.brands).filter(Boolean))].join(', ') || '—';
+    const principles = c.principle || '—';
+    const brands = c.brands || '—';
     const promos = c.promotion || '—';
     const trades = c.trade_deal || '—';
 
