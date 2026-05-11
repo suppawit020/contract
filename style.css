@@ -43,7 +43,7 @@
 
     /* Sidebar */
     --sidebar-w: 220px;
-    --sidebar-collapsed-w: 60px;
+    --sidebar-collapsed-w: 0px;
     --sidebar-bg: #0f172a;
     --sidebar-text: #94a3b8;
     --sidebar-text-active: #f1f5f9;
@@ -230,13 +230,21 @@ body {
     width: var(--sidebar-collapsed-w);
 }
 
+.sidebar-collapsed .sidebar-logo,
+.sidebar-collapsed .nav-item,
+.sidebar-collapsed .sidebar-footer {
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .sidebar-collapsed .sidebar-logo-text,
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .nav-badge,
 .sidebar-collapsed .nav-section-label,
 .sidebar-collapsed .sidebar-footer-info span {
+    display: none;
     opacity: 0;
-    pointer-events: none;
 }
 
 .sidebar-collapsed .sidebar-logo {
@@ -1633,6 +1641,22 @@ td:first-child {
     .sidebar-collapsed .layout-wrapper {
         margin-left: 0 !important;
     }
+
+    /* --- เพิ่มการจัดการคลาส sidebar-collapsed ในโหมดหน้าจอเล็ก --- */
+    .sidebar-collapsed .sidebar {
+        width: var(--sidebar-w) !important;
+    }
+
+    .sidebar-collapsed .sidebar-logo-text,
+    .sidebar-collapsed .nav-label,
+    .sidebar-collapsed .nav-badge,
+    .sidebar-collapsed .nav-section-label,
+    .sidebar-collapsed .sidebar-footer-info span {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+
+    /* ------------------------------------------------------------- */
 
     .main {
         padding: 12px;
