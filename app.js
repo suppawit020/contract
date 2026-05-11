@@ -30,6 +30,9 @@ const tsInstances = {};
 let marketingLines = [];
 let linesTsInstances = {};
 
+// ตัวแปร global สำหรับเก็บ instance ของกราฟเปรียบเทียบ
+let comparisonChartInstance = null;
+
 // ── Sidebar & Navigation ───────────────────
 let sidebarCollapsed = true;
 
@@ -79,9 +82,8 @@ function showPage(page) {
     closeSidebar();
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
-        closeSidebar(); // ปิด Overlay บนมือถือ
+        closeSidebar();
     } else {
-        // พับเก็บ Sidebar บน Desktop
         sidebarCollapsed = true;
         document.body.classList.add('sidebar-collapsed');
     }
@@ -97,7 +99,7 @@ function renderDashboard() {
     contracts.forEach(c => {
         if (c.contract_type === 'Marketing') {
             const key = c.contract_group_id || getGroupKey(c);
-            if (seenGroups.has(key)) return; // นับ group เดียว
+            if (seenGroups.has(key)) return;
             seenGroups.add(key);
             marketingCount++;
             if (!c.period || c.period === 'Active') activeCount++;
@@ -111,15 +113,16 @@ function renderDashboard() {
 
     renderDonutChart('dash-type-chart', [
         { label: 'Marketing', value: marketingCount, color: '#f59e0b' },
-        { label: 'Yearly',    value: yearlyCount,    color: '#0891b2' },
+        { label: 'Yearly', value: yearlyCount, color: '#0891b2' },
     ]);
 
     renderDonutChart('dash-status-chart', [
-        { label: 'Active',   value: activeCount,   color: '#16a34a' },
+        { label: 'Active', value: activeCount, color: '#16a34a' },
         { label: 'Inactive', value: inactiveCount, color: '#94a3b8' },
     ]);
 
-    renderRecentContracts();
+    // วาดกราฟเปรียบเทียบ
+    renderComparisonChart();
 }
 
 function renderDonutChart(containerId, segments) {
@@ -146,7 +149,7 @@ function renderDonutChart(containerId, segments) {
         const pct = seg.value / total;
         const angle = pct * 360;
         const startRad = (currentAngle * Math.PI) / 180;
-        const endRad   = ((currentAngle + angle) * Math.PI) / 180;
+        const endRad = ((currentAngle + angle) * Math.PI) / 180;
         const x1 = cx + r * Math.cos(startRad);
         const y1 = cy + r * Math.sin(startRad);
         const x2 = cx + r * Math.cos(endRad);
@@ -179,40 +182,106 @@ function renderDonutChart(containerId, segments) {
         </div>`;
 }
 
-function renderRecentContracts() {
-    const container = document.getElementById('dash-recent-list');
-    if (!container) return;
+// ── Statistical Comparison Chart (Bar Chart) ───────────────
+function renderComparisonChart() {
+    const ctx = document.getElementById('comparisonChart');
+    if (!ctx) return;
 
-    const recent = [...contracts]
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 8);
+    // เตรียมข้อมูล: นับจำนวน Marketing vs Yearly แยกตาม Area
+    const areaData = {};
+    const seenGroups = new Set();
 
-    if (recent.length === 0) {
-        container.innerHTML = '<div class="dash-empty">No contracts yet</div>';
-        return;
+    contracts.forEach(c => {
+        const type = c.contract_type || 'Yearly';
+        const area = (c.customer && c.customer.region) ? c.customer.region : 'Unknown Area';
+
+        // กรองการนับซ้ำของ Marketing Group
+        if (type === 'Marketing') {
+            const key = c.contract_group_id || getGroupKey(c);
+            if (seenGroups.has(key)) return;
+            seenGroups.add(key);
+        }
+
+        if (!areaData[area]) {
+            areaData[area] = { Marketing: 0, Yearly: 0 };
+        }
+        areaData[area][type]++;
+    });
+
+    // แยกข้อมูลแกน X (ชื่อ Area) และแกน Y (จำนวนแต่ละประเภท)
+    const labels = Object.keys(areaData).sort();
+    const marketingCounts = labels.map(label => areaData[label].Marketing);
+    const yearlyCounts = labels.map(label => areaData[label].Yearly);
+
+    // ทำลายกราฟเก่าทิ้งก่อนวาดใหม่ (ป้องกันปัญหากราฟซ้อนทับกันเมื่อ Resize หรือโหลดข้อมูลใหม่)
+    if (comparisonChartInstance) {
+        comparisonChartInstance.destroy();
     }
 
-    container.innerHTML = recent.map(c => {
-        const customer = c.customer || {};
-        const outlet = customer.outlet_name || c.customer_id || '—';
-        const type = c.contract_type || 'Yearly';
-        const typeBadge = type === 'Marketing'
-            ? `<span class="type-badge type-marketing">Marketing</span>`
-            : `<span class="type-badge type-yearly">Yearly</span>`;
-        const statusBadge = `<span class="badge ${getStatusBadge(c.period)}">${c.period || 'Active'}</span>`;
-        const date = c.created_at ? formatMonthYear(c.created_at) : '—';
-
-        return `<div class="recent-item">
-            <div>
-                <div class="recent-outlet">${escHtml(outlet)}</div>
-                <div class="recent-meta">${escHtml(customer.province || '—')} · ${date}</div>
-            </div>
-            <div class="recent-right">
-                ${typeBadge}
-                ${statusBadge}
-            </div>
-        </div>`;
-    }).join('');
+    // วาดกราฟแท่ง
+    comparisonChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Marketing',
+                    data: marketingCounts,
+                    backgroundColor: '#f59e0b', // สีเดียวกับ Donut Chart
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.8
+                },
+                {
+                    label: 'Yearly',
+                    data: yearlyCounts,
+                    backgroundColor: '#0891b2', // สีเดียวกับ Donut Chart
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: { family: "'DM Sans', 'Sarabun', sans-serif", size: 13 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { family: "'DM Sans', 'Sarabun', sans-serif" },
+                    bodyFont: { family: "'DM Sans', 'Sarabun', sans-serif" },
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } }
+                },
+                y: {
+                    beginAtZero: true,
+                    border: { display: false },
+                    ticks: {
+                        stepSize: 1, // บังคับให้สเกลแกน Y แสดงเป็นจำนวนเต็ม
+                        font: { family: "'DM Sans', 'Sarabun', sans-serif" }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            }
+        }
+    });
 }
 
 // ── Init ───────────────────────────────────
@@ -267,7 +336,9 @@ function populateCustomerDropdown() {
     const initialOptions = customers.map(c => ({
         value: String(c.customer_id),
         text: `${c.customer_id} — ${c.outlet_name || 'ไม่ระบุ'}`,
-        bde: c.bde || ''
+        bde: c.bde || '',
+        region: c.region || '',
+        province: c.province || ''
     }));
 
     if (window.TomSelect) {
@@ -280,12 +351,25 @@ function populateCustomerDropdown() {
             dropdownParent: 'body',
             onChange: function (value) {
                 const opt = this.options[value];
-                if (opt && opt.bde) {
-                    const matchedUser = users.find(u => u.user_id === opt.bde || u.name === opt.bde);
-                    const bdeId = matchedUser ? matchedUser.user_id : opt.bde;
-                    setTsValue('field-bde', bdeId);
+                if (opt) {
+                    if (opt.bde) {
+                        const matchedUser = users.find(u => u.user_id === opt.bde || u.name === opt.bde);
+                        const bdeId = matchedUser ? matchedUser.user_id : opt.bde;
+                        setTsValue('field-bde', bdeId);
+                    } else {
+                        clearTsField('field-bde');
+                    }
+                    // อัปเดตช่อง Area และ Province
+                    const areaField = document.getElementById('field-area');
+                    const provField = document.getElementById('field-province');
+                    if (areaField) areaField.value = opt.region || '';
+                    if (provField) provField.value = opt.province || '';
                 } else {
                     clearTsField('field-bde');
+                    const areaField = document.getElementById('field-area');
+                    const provField = document.getElementById('field-province');
+                    if (areaField) areaField.value = '';
+                    if (provField) provField.value = '';
                 }
             }
         });
@@ -789,6 +873,13 @@ function openAddModal() {
     document.getElementById('modal-title').textContent = 'Add New Contract';
     document.getElementById('contract-form').reset();
     ['field-customer', 'field-bde', 'field-principle', 'field-brands', 'field-promotion', 'field-trade-deal'].forEach(clearTsField);
+
+    // เคลียร์ฟิลด์ Area, Province
+    const areaField = document.getElementById('field-area');
+    const provField = document.getElementById('field-province');
+    if (areaField) areaField.value = '';
+    if (provField) provField.value = '';
+
     document.getElementById('modal-overlay').classList.add('active');
 }
 
@@ -799,6 +890,14 @@ async function openEditModal(id) {
 
     document.getElementById('modal-title').textContent = 'Edit Contract';
     setTsValue('field-customer', contract.customer_id);
+
+    // โหลด Area, Province ของ Outlet ปัจจุบันมาแสดง
+    const cust = customers.find(c => String(c.customer_id) === String(contract.customer_id));
+    const areaField = document.getElementById('field-area');
+    const provField = document.getElementById('field-province');
+    if (areaField) areaField.value = cust ? (cust.region || '') : '';
+    if (provField) provField.value = cust ? (cust.province || '') : '';
+
     setField('field-contract-type', contract.contract_type || '');
     setTsValue('field-promotion', contract.promotion || '');
     setTsValue('field-trade-deal', contract.trade_deal || '');
@@ -825,6 +924,14 @@ async function openEditMarketingGroup(groupId) {
 
     document.getElementById('modal-title').textContent = 'Edit Marketing Contract';
     setTsValue('field-customer', contract.customer_id);
+
+    // โหลด Area, Province ของ Outlet ปัจจุบันมาแสดง
+    const cust = customers.find(c => String(c.customer_id) === String(contract.customer_id));
+    const areaField = document.getElementById('field-area');
+    const provField = document.getElementById('field-province');
+    if (areaField) areaField.value = cust ? (cust.region || '') : '';
+    if (provField) provField.value = cust ? (cust.province || '') : '';
+
     setField('field-contract-type', contract.contract_type || 'Marketing');
     setTsValue('field-promotion', contract.promotion || '');
     setTsValue('field-trade-deal', contract.trade_deal || '');
