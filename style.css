@@ -1113,7 +1113,6 @@ td:first-child {
 
     to {
         transform: translateY(0);
-        opacity: 1;
     }
 }
 
@@ -1685,4 +1684,26 @@ td:first-child {
     .header-stats-mini {
         display: none;
     }
+}
+
+/* ── Expire Status in Table ── */
+.expire-text {
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 2px;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+}
+
+.expire-danger {
+    color: var(--danger);
+}
+
+.expire-warning {
+    color: var(--warning);
+}
+
+.expire-safe {
+    color: var(--text-3);
+    font-weight: 500;
 }
