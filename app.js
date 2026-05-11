@@ -77,6 +77,14 @@ function showPage(page) {
 
     // Close mobile sidebar after nav
     closeSidebar();
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        closeSidebar(); // ปิด Overlay บนมือถือ
+    } else {
+        // พับเก็บ Sidebar บน Desktop
+        sidebarCollapsed = true;
+        document.body.classList.add('sidebar-collapsed');
+    }
 }
 
 // ── Dashboard Render ───────────────────────
