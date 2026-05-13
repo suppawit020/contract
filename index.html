@@ -6,9 +6,39 @@
         <title>Contract Management</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
         <link rel="stylesheet" href="style.css" />
+        <style>
+            /* ล็อคฟอร์มส่วนที่ 2 และ 3 */
+            .locked-content {
+                opacity: 0.4;
+                pointer-events: none; /* ปิดการคลิก/พิมพ์ทั้งหมด */
+                transition: all 0.3s ease;
+                position: relative;
+            }
+
+            /* ปลดล็อคเมื่อเลือก Contract Type */
+            .locked-content.unlocked {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            /* ข้อความเตือนภาษาอังกฤษสีแดงจางๆ */
+            .locked-message {
+                display: block;
+                text-align: center;
+                color: rgba(220, 38, 38, 0.7);
+                font-size: 13px;
+                font-weight: 600;
+                margin-top: -10px;
+                margin-bottom: 15px;
+            }
+
+            /* ซ่อนข้อความเตือนเมื่อปลดล็อคแล้ว */
+            .locked-content.unlocked .locked-message {
+                display: none;
+            }
+        </style>
     </head>
     <body class="sidebar-collapsed">
 
@@ -267,7 +297,7 @@
                         <div class="dash-card dash-card-wide">
                             <div class="dash-card-header">
                                 <h3 class="dash-card-title">Contracts Comparison
-                                    by Area</h3>
+                                    by Sub-team (Area)</h3>
                             </div>
                             <div class="dash-chart-wrap"
                                 style="height: 320px; padding: 20px;">
@@ -366,7 +396,7 @@
                                     <th class="col-code">CODE OUTLET</th>
                                     <th class="col-company">COMPANY</th>
                                     <th class="col-outlet">OUTLET NAME</th>
-                                    <th class="col-area">AREA</th>
+                                    <th class="col-area">SUB-TEAM (AREA)</th>
                                     <th class="col-province">PROVINCE</th>
                                     <th class="col-type">TYPE</th>
                                     <th class="col-promo">PROMOTION</th>
@@ -412,16 +442,12 @@
 
                         <div class="form-step-header">
                             <span class="form-step-num">1</span>
-                            <span class="form-step-label">Select Contract
-                                Type</span>
+                            <span class="form-step-label">Select Contract Type</span>
                         </div>
                         <div class="form-grid" style="margin-bottom:20px;">
                             <div class="form-group full">
-                                <label class="form-label">Contract Type <span
-                                        class="req">*</span></label>
-                                <select id="field-contract-type"
-                                    class="form-select"
-                                    onchange="onContractTypeChange(this.value)">
+                                <label class="form-label">Contract Type <span class="req">*</span></label>
+                                <select id="field-contract-type" class="form-select" onchange="onContractTypeChange(this.value)">
                                     <option value>-- Select Type --</option>
                                     <option value="Marketing">Marketing</option>
                                     <option value="Yearly">Yearly</option>
@@ -429,106 +455,108 @@
                             </div>
                         </div>
 
-                        <div class="form-step-header">
-                            <span class="form-step-num">2</span>
-                            <span class="form-step-label">Select or Add
-                                Outlet</span>
-                        </div>
-                        <div id="outlet-section" class="outlet-section-locked">
+                        <div id="dependent-sections" class="locked-content">
+                            <div class="locked-message">* Please select Contract Type first</div>
+                            
+                            <div class="form-step-header">
+                                <span class="form-step-num">2</span>
+                                <span class="form-step-label">Select or Add Outlet</span>
+                            </div>
+                            <div id="outlet-section">
+                                <div class="form-grid">
+                                    <div class="form-group full">
+                                        <label class="form-label">
+                                            Outlet <span class="req">*</span>
+                                            <span id="new-outlet-badge"
+                                                style="display:none;font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 9px;border-radius:10px;margin-left:8px;">
+                                                NEW OUTLET PENDING
+                                            </span>
+                                        </label>
+                                        <select id="field-customer"
+                                            class="form-select"></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Sub-team (Area)
+                                            <span class="req" id="req-area"
+                                                style="display:none;">*</span></label>
+                                        <select id="field-area" class="form-select"
+                                            placeholder="Auto-filled"></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Province <span
+                                                class="req" id="req-province"
+                                                style="display:none;">*</span></label>
+                                        <select id="field-province"
+                                            class="form-select"
+                                            placeholder="Auto-filled"></select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-step-header" style="margin-top:20px;">
+                                <span class="form-step-num">3</span>
+                                <span class="form-step-label">Contract Details</span>
+                            </div>
                             <div class="form-grid">
-                                <div class="form-group full">
-                                    <label class="form-label">
-                                        Outlet <span class="req">*</span>
-                                        <span id="new-outlet-badge"
-                                            style="display:none;font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 9px;border-radius:10px;margin-left:8px;">
-                                            NEW OUTLET PENDING
-                                        </span>
-                                    </label>
-                                    <select id="field-customer"
+                                <div class="form-group">
+                                    <label class="form-label">Status</label>
+                                    <select id="field-status" class="form-select">
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">BDE</label>
+                                    <select id="field-bde"
                                         class="form-select"></select>
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">Area (Region)
-                                        <span class="req" id="req-area"
-                                            style="display:none;">*</span></label>
-                                    <select id="field-area" class="form-select"
-                                        placeholder="Auto-filled"></select>
+                                    <label class="form-label">Start Date</label>
+                                    <input type="date" id="field-start"
+                                        class="form-input" />
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">Province <span
-                                            class="req" id="req-province"
-                                            style="display:none;">*</span></label>
-                                    <select id="field-province"
-                                        class="form-select"
-                                        placeholder="Auto-filled"></select>
+                                    <label class="form-label">End Date</label>
+                                    <input type="date" id="field-end"
+                                        class="form-input" />
+                                </div>
+                            </div>
+                            <div class="section-divider"><span>Contract Options</span></div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Principle</label>
+                                    <select id="field-principle"
+                                        class="form-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Brand</label>
+                                    <select id="field-brands"
+                                        class="form-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Promotion</label>
+                                    <select id="field-promotion"
+                                        class="form-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Trade Deal
+                                        <span id="trade-deal-multi-hint"
+                                            style="display:none; font-size:11px; font-weight:600; color:var(--primary); background:var(--primary-light); padding:1px 7px; border-radius:10px; margin-left:6px;">Multi-select</span>
+                                    </label>
+                                    <select id="field-trade-deal"
+                                        class="form-select"></select>
+                                </div>
+                            </div>
+                            <div class="form-grid" style="margin-top:16px;">
+                                <div class="form-group full">
+                                    <label class="form-label">Remark</label>
+                                    <textarea id="field-remark"
+                                        class="form-textarea"
+                                        placeholder="Additional notes..."></textarea>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="form-step-header" style="margin-top:20px;">
-                            <span class="form-step-num">3</span>
-                            <span class="form-step-label">Contract
-                                Details</span>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label">Status</label>
-                                <select id="field-status" class="form-select">
-                                    <option value="Active">Active</option>
-                                    <option value="Inactive">Inactive</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">BDE</label>
-                                <select id="field-bde"
-                                    class="form-select"></select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Start Date</label>
-                                <input type="date" id="field-start"
-                                    class="form-input" />
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">End Date</label>
-                                <input type="date" id="field-end"
-                                    class="form-input" />
-                            </div>
-                        </div>
-                        <div class="section-divider"><span>Contract
-                                Options</span></div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label">Principle</label>
-                                <select id="field-principle"
-                                    class="form-select"></select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Brand</label>
-                                <select id="field-brands"
-                                    class="form-select"></select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Promotion</label>
-                                <select id="field-promotion"
-                                    class="form-select"></select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Trade Deal
-                                    <span id="trade-deal-multi-hint"
-                                        style="display:none; font-size:11px; font-weight:600; color:var(--primary); background:var(--primary-light); padding:1px 7px; border-radius:10px; margin-left:6px;">Multi-select</span>
-                                </label>
-                                <select id="field-trade-deal"
-                                    class="form-select"></select>
-                            </div>
-                        </div>
-                        <div class="form-grid" style="margin-top:16px;">
-                            <div class="form-group full">
-                                <label class="form-label">Remark</label>
-                                <textarea id="field-remark"
-                                    class="form-textarea"
-                                    placeholder="Additional notes..."></textarea>
-                            </div>
-                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
