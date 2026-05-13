@@ -60,6 +60,22 @@
                     <span class="nav-label">Contracts</span>
                     <span class="nav-badge" id="nav-badge-contracts">—</span>
                 </a>
+
+                <a class="nav-item" id="nav-admin" href="admin.html"
+                    style="position:relative;">
+                    <span class="nav-icon">
+                        <svg width="18" height="18" fill="none"
+                            stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path
+                                d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                    </span>
+                    <span class="nav-label">Admin Outlets</span>
+                    <span class="nav-badge" id="nav-badge-pending"
+                        style="background:#dc2626;display:none;">!</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -118,7 +134,7 @@
                     <div class="dashboard-controls">
                         <select id="dashboard-view-selector" class="form-select"
                             style="min-width: 220px; font-weight: 600;">
-                            <option value="overview">   Overview
+                            <option value="overview"> Overview
                                 Analytics</option>
                             <option value="bde"> BDE Performance</option>
                             <option value="brands"> Top Brands &
@@ -323,10 +339,10 @@
                         <option value="Marketing">Marketing</option>
                         <option value="Yearly">Yearly</option>
                     </select>
-                    <select id="filter-status" class="filter-select">
-                        <option value>All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
+                    <select id="filter-expired" class="filter-select">
+                        <option value>All Expirations</option>
+                        <option value="Valid">Valid</option>
+                        <option value="Expired">Expired</option>
                     </select>
                     <button class="btn-primary" onclick="openAddModal()">
                         <svg width="16" height="16" fill="none"
@@ -360,14 +376,13 @@
                                     <th class="col-end">END</th>
                                     <th class="col-remark">REMARK</th>
                                     <th class="col-received">RECEIVED DATE</th>
-                                    <th class="col-status">STATUS</th>
                                     <th class="col-principle">PRINCIPLE</th>
                                     <th class="col-brand">BRAND</th>
                                     <th class="col-actions">ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody id="contracts-tbody">
-                                <tr><td colspan="18" class="empty-state">Loading
+                                <tr><td colspan="17" class="empty-state">Loading
                                         data...</td></tr>
                             </tbody>
                         </table>
@@ -394,35 +409,68 @@
                 </div>
                 <div class="modal-body">
                     <form id="contract-form" onsubmit="return false;">
-                        <div class="form-grid">
+
+                        <div class="form-step-header">
+                            <span class="form-step-num">1</span>
+                            <span class="form-step-label">Select Contract
+                                Type</span>
+                        </div>
+                        <div class="form-grid" style="margin-bottom:20px;">
                             <div class="form-group full">
-                                <label class="form-label">Outlet <span
+                                <label class="form-label">Contract Type <span
                                         class="req">*</span></label>
-                                <select id="field-customer"
-                                    class="form-select"></select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Area (Region)</label>
-                                <input type="text" id="field-area"
-                                    class="form-input" readonly tabindex="-1"
-                                    style="background: var(--surface-2); color: var(--text-3); cursor: default;"
-                                    placeholder="Auto-filled" />
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Province</label>
-                                <input type="text" id="field-province"
-                                    class="form-input" readonly tabindex="-1"
-                                    style="background: var(--surface-2); color: var(--text-3); cursor: default;"
-                                    placeholder="Auto-filled" />
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Contract Type</label>
                                 <select id="field-contract-type"
-                                    class="form-select">
+                                    class="form-select"
+                                    onchange="onContractTypeChange(this.value)">
+                                    <option value>-- Select Type --</option>
                                     <option value="Marketing">Marketing</option>
                                     <option value="Yearly">Yearly</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="form-step-header">
+                            <span class="form-step-num">2</span>
+                            <span class="form-step-label">Select or Add
+                                Outlet</span>
+                        </div>
+                        <div id="outlet-section" class="outlet-section-locked">
+                            <div class="form-grid">
+                                <div class="form-group full">
+                                    <label class="form-label">
+                                        Outlet <span class="req">*</span>
+                                        <span id="new-outlet-badge"
+                                            style="display:none;font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 9px;border-radius:10px;margin-left:8px;">
+                                            NEW OUTLET PENDING
+                                        </span>
+                                    </label>
+                                    <select id="field-customer"
+                                        class="form-select"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Area (Region)
+                                        <span class="req" id="req-area"
+                                            style="display:none;">*</span></label>
+                                    <select id="field-area" class="form-select"
+                                        placeholder="Auto-filled"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Province <span
+                                            class="req" id="req-province"
+                                            style="display:none;">*</span></label>
+                                    <select id="field-province"
+                                        class="form-select"
+                                        placeholder="Auto-filled"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-step-header" style="margin-top:20px;">
+                            <span class="form-step-num">3</span>
+                            <span class="form-step-label">Contract
+                                Details</span>
+                        </div>
+                        <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Status</label>
                                 <select id="field-status" class="form-select">
@@ -447,7 +495,7 @@
                             </div>
                         </div>
                         <div class="section-divider"><span>Contract
-                                Details</span></div>
+                                Options</span></div>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label">Principle</label>
@@ -465,12 +513,15 @@
                                     class="form-select"></select>
                             </div>
                             <div class="form-group">
-                                <label class="form-label">Trade Deal</label>
+                                <label class="form-label">Trade Deal
+                                    <span id="trade-deal-multi-hint"
+                                        style="display:none; font-size:11px; font-weight:600; color:var(--primary); background:var(--primary-light); padding:1px 7px; border-radius:10px; margin-left:6px;">Multi-select</span>
+                                </label>
                                 <select id="field-trade-deal"
                                     class="form-select"></select>
                             </div>
                         </div>
-                        <div class="form-grid" style="margin-top: 16px;">
+                        <div class="form-grid" style="margin-top:16px;">
                             <div class="form-group full">
                                 <label class="form-label">Remark</label>
                                 <textarea id="field-remark"
