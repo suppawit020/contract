@@ -735,7 +735,7 @@ function renderYearlyRow(c, no) {
       <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
       <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
       <td class="col-remark">${escHtml(c.support || '—')}</td>
-      <td class="col-received">${c.created_at ? formatMonthYear(c.created_at) : '—'}</td>
+      <td class="col-received">${c.created_at ? formatDate(c.created_at) : '—'}</td>
       <td class="col-principle">${escHtml(c.principle || '—')}</td>
       <td class="col-brand">${escHtml(c.brands || '—')}</td>
       <td class="col-actions">
@@ -766,7 +766,7 @@ function renderMarketingGroup(row, no) {
       <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
       <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
       <td class="col-remark">${escHtml(c.support || '—')}</td>
-      <td class="col-received">${c.created_at ? formatMonthYear(c.created_at) : '—'}</td>
+      <td class="col-received">${c.created_at ? formatDate(c.created_at) : '—'}</td>
       <td class="col-principle" title="${escHtml(c.principle || '—')}">${escHtml(truncate(c.principle || '—', 20))}</td>
       <td class="col-brand" title="${escHtml(c.brands || '—')}">${escHtml(truncate(c.brands || '—', 20))}</td>
       <td class="col-actions">
@@ -790,7 +790,7 @@ function renderMarketingGroup(row, no) {
       <td class="col-start">${line.start_date ? formatDate(line.start_date) : '—'}</td>
       <td class="col-end">${getEndColumnHtml(line.end_date)}</td>
       <td class="col-remark">${escHtml(line.support || '—')}</td>
-      <td class="col-received">${line.created_at ? formatMonthYear(line.created_at) : '—'}</td>
+      <td class="col-received">${line.created_at ? formatDate(line.created_at) : '—'}</td>
       <td class="col-principle">${escHtml(line.principle || '—')}</td>
       <td class="col-brand">${escHtml(line.brands || '—')}</td>
       <td class="col-actions">
