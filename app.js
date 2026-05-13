@@ -405,7 +405,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadContracts();
     renderDashboard();
     setupEventListeners();
-    checkPendingOutlets();
 });
 
 async function loadUsers() {
@@ -1048,23 +1047,6 @@ function openAddModal() {
     document.getElementById('modal-overlay').classList.add('active');
 }
 
-async function checkPendingOutlets() {
-    try { 
-        const { count } = await supabaseClient.from('customers').select('*', { count: 'exact', head: true }).ilike('customer_id', 'PENDING-%'); 
-        const badge = document.getElementById('nav-badge-pending'); 
-        if (badge) { 
-            if (count > 0) { 
-                badge.style.display = 'inline'; 
-                badge.textContent = count; 
-            } else {
-                badge.style.display = 'none'; 
-            }
-        } 
-    } catch (e) { 
-        console.error("Error checking pending outlets:", e); 
-    }
-}
-
 async function openEditModal(id) {
     editingId = id; 
     editingGroupId = null; 
@@ -1261,7 +1243,6 @@ async function saveContract() {
         pendingNewOutlet = null; 
         closeModal(); 
         await loadContracts(); 
-        checkPendingOutlets();
     } finally { 
         btn.disabled = false; 
     }
