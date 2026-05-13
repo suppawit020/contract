@@ -907,10 +907,6 @@ td:first-child {
     width: 90px;
 }
 
-.col-status {
-    width: 90px;
-}
-
 .col-principle,
 .col-brand {
     max-width: 120px;
@@ -1686,6 +1682,186 @@ td:first-child {
     }
 }
 
+/* ── Contract Type Selector Step ── */
+.type-selector-step {
+    padding: 8px 0 16px;
+}
+
+.type-selector-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 14px;
+}
+
+.type-selector-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.type-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font);
+    transition: all .18s ease;
+}
+
+.type-card:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.type-card.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, .12);
+}
+
+.type-card-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.type-card-icon.marketing {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.type-card-icon.yearly {
+    background: var(--teal-light);
+    color: var(--teal);
+}
+
+.type-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+}
+
+.type-card-desc {
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 400;
+}
+
+/* ── Marketing Line in modal ── */
+.mkt-line-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.mkt-line-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.mkt-line-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.mkt-line-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+}
+
+@media (min-width: 640px) {
+    .mkt-line-grid {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+}
+
+.mkt-line-grid .full-row {
+    grid-column: 1 / -1;
+}
+
+.trade-deals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.trade-deal-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trade-deal-item select {
+    flex: 1;
+}
+
+.btn-remove-trade {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: none;
+    border-radius: var(--radius-sm);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s;
+}
+
+.btn-remove-trade:hover {
+    background: #ffc9c9;
+}
+
+.btn-add-trade {
+    background: none;
+    border: 1px dashed var(--border-2);
+    border-radius: var(--radius-sm);
+    color: var(--text-3);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 5px 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    transition: all .15s;
+    width: fit-content;
+}
+
+.btn-add-trade:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
 /* ── Expire Status in Table ── */
 .expire-text {
     font-size: 11px;
@@ -1706,4 +1882,176 @@ td:first-child {
 .expire-safe {
     color: var(--text-3);
     font-weight: 500;
+}
+
+/* ── New Outlet & Form Steps ─────────────────────── */
+
+/* Step headers */
+.form-step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    margin-top: 4px;
+}
+
+.form-step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.form-step-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-2);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Outlet section locked state */
+.outlet-section-locked {
+    opacity: 0.45;
+    pointer-events: none;
+    transition: opacity 0.25s;
+}
+
+.outlet-section-locked::after {
+    content: 'เลือก Contract Type ก่อน';
+    display: block;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 6px;
+    font-style: italic;
+}
+
+/* New outlet panel */
+.new-outlet-panel-inner {
+    background: #f0fdf4;
+    border: 2px solid #86efac;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.new-outlet-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #15803d;
+    margin-bottom: 14px;
+}
+
+/* TomSelect "Add New Outlet" special option */
+.ts-add-new-option {
+    color: var(--primary);
+    font-weight: 600;
+    padding: 4px 0;
+}
+
+/* Admin badge pulse */
+#nav-badge-pending {
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 5px rgba(220, 38, 38, 0);
+    }
+}
+
+/* ==========================================================
+   ปรับแต่ง Trade Deal: ให้เป็น List Card (ใช้ร่วมกันทั้ง Yearly และ Marketing)
+   ========================================================== */
+
+/* 1. ให้กล่องหลักจัดเรียงจากบนลงล่างเสมอ (ลบคำว่า .multi ออกเพื่อให้แสดงผลเหมือนกันทั้งคู่) */
+#field-trade-deal+.ts-wrapper .ts-control {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    padding: 8px !important;
+    background: var(--surface-2) !important;
+}
+
+/* 2. หน้าตาการ์ด */
+#field-trade-deal+.ts-wrapper .ts-control .item {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    border-radius: 6px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* 3. ปุ่มลบ (X) ในการ์ด */
+#field-trade-deal+.ts-wrapper .ts-control .item .remove {
+    border-left: none !important;
+    color: var(--danger) !important;
+    font-size: 16px !important;
+    padding: 0 4px !important;
+    margin-left: auto !important;
+    opacity: 0.5;
+    transition: opacity 0.15s !important;
+    text-decoration: none !important;
+}
+
+#field-trade-deal+.ts-wrapper .ts-control .item .remove:hover {
+    opacity: 1 !important;
+    background: transparent !important;
+}
+
+/* 4. ช่องค้นหา */
+#field-trade-deal+.ts-wrapper .ts-control>input {
+    width: 100% !important;
+    margin: 4px 0 0 0 !important;
+    padding: 6px 12px !important;
+    background: transparent !important;
+}
+
+#field-trade-deal+.ts-wrapper .ts-control.has-items input::placeholder {
+    color: var(--text-3) !important;
+}
+
+/* 5. ซ่อนช่องพิมพ์สำหรับโหมด Yearly (Single) เมื่อเลือกแล้ว เพื่อให้ไม่สามารถพิมพ์ต่อได้ */
+#field-trade-deal+.ts-wrapper.single.has-items .ts-control>input {
+    display: none !important;
 }
