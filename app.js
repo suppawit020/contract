@@ -25,6 +25,8 @@ let totalCount = 0;
 let searchQuery = '';
 let filterStatus = '';
 let filterType = '';
+let filterMonth = '';
+let filterYear = '';
 const tsInstances = {};
 
 let marketingLines = [];
@@ -396,6 +398,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nav-dashboard').classList.add('active');
     document.getElementById('breadcrumb-current').textContent = 'Dashboard';
 
+    // Populate export year dropdown
+    const yearSel = document.getElementById('export-year');
+    if (yearSel) {
+        const currentYear = new Date().getFullYear();
+        yearSel.innerHTML = '<option value="">All Years</option>';
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            if (y === currentYear) opt.selected = true;
+            yearSel.appendChild(opt);
+        }
+    }
+
     initRegionProvinceDropdowns();
     await Promise.all([loadCustomers(), loadUsers(), initCreatableFields()]);
     await backfillGroupIds();
@@ -641,12 +657,25 @@ async function loadContracts() {
 
     if (filterType) query = query.eq('contract_type', filterType);
 
-    query = query.order('created_at', { ascending: true });
+    query = query.order('created_at', { ascending: false });
     const { data, error } = await query;
     showTableLoading(false);
 
     if (error) { showToast('Failed to load data: ' + error.message, 'error'); return; }
-    contracts = data || [];
+    let allData = data || [];
+
+    // กรองตามเดือน/ปีที่เลือก (client-side)
+    if (filterMonth || filterYear) {
+        allData = allData.filter(c => {
+            if (!c.created_at) return false;
+            const d = new Date(c.created_at);
+            const matchMonth = filterMonth ? (d.getMonth() + 1) === parseInt(filterMonth) : true;
+            const matchYear = filterYear ? d.getFullYear() === parseInt(filterYear) : true;
+            return matchMonth && matchYear;
+        });
+    }
+
+    contracts = allData;
     renderTable();
     updateStats();
 
@@ -687,13 +716,20 @@ function renderTable() {
         }
     });
 
+    // เรียง groups ล่าสุดบนสุด (created_at DESC)
+    rows.sort((a, b) => new Date(b.header.created_at) - new Date(a.header.created_at));
+
+    // นับ No. ถอยหลัง แยกตาม type (ล่าสุดบนสุด = เลขสูงสุดของ type นั้น)
+    const typeTotals = {};
+    rows.forEach((row) => {
+        const type = row.header.contract_type || 'Unknown';
+        typeTotals[type] = (typeTotals[type] || 0) + 1;
+    });
     const typeCounters = {};
     rows.forEach((row) => {
         const type = row.header.contract_type || 'Unknown';
-        if (!typeCounters[type]) {
-            typeCounters[type] = 1;
-        }
-        row.no = typeCounters[type]++;
+        if (!typeCounters[type]) typeCounters[type] = 0;
+        row.no = typeTotals[type] - typeCounters[type]++;
     });
 
     totalCount = rows.length;
@@ -1362,6 +1398,18 @@ function setupEventListeners() {
         loadContracts();
     });
 
+    document.getElementById('export-month').addEventListener('change', e => {
+        filterMonth = e.target.value;
+        currentPage = 1;
+        loadContracts();
+    });
+
+    document.getElementById('export-year').addEventListener('change', e => {
+        filterYear = e.target.value;
+        currentPage = 1;
+        loadContracts();
+    });
+
     document.getElementById('modal-overlay').addEventListener('click', e => {
         if (e.target === document.getElementById('modal-overlay')) closeModal();
     });
@@ -1387,7 +1435,20 @@ function showToast(msg, type = 'info') {
     const toast = document.getElementById('toast');
     toast.textContent = msg;
     toast.className = `toast toast-${type} show`;
-    setTimeout(() => toast.classList.remove('show'), 3000);
+
+    const colors = {
+        success: { bg: '#16a34a', text: '#ffffff' },
+        error:   { bg: '#dc2626', text: '#ffffff' },
+        warning: { bg: '#d97706', text: '#ffffff' },
+        info:    { bg: '#0891b2', text: '#ffffff' }
+    };
+    const c = colors[type] || colors.info;
+    toast.style.background = c.bg;
+    toast.style.color = c.text;
+    toast.style.fontWeight = '600';
+    toast.style.boxShadow = '0 4px 16px rgba(0,0,0,0.18)';
+
+    setTimeout(() => toast.classList.remove('show'), 4000);
 }
 
 function debounce(fn, delay) {
@@ -1402,6 +1463,34 @@ function debounce(fn, delay) {
 async function exportToExcel() {
     if (!contracts || contracts.length === 0) {
         showToast('No data to export', 'warning');
+        return;
+    }
+
+    // กรองตามเดือน/ปีที่เลือก
+    const exportMonth = parseInt(document.getElementById('export-month')?.value) || null;
+    const exportYear = parseInt(document.getElementById('export-year')?.value) || null;
+
+    let exportData = contracts;
+    if (exportMonth || exportYear) {
+        exportData = contracts.filter(c => {
+            if (!c.created_at) return false;
+            const d = new Date(c.created_at);
+            const matchMonth = exportMonth ? (d.getMonth() + 1) === exportMonth : true;
+            const matchYear = exportYear ? d.getFullYear() === exportYear : true;
+            return matchMonth && matchYear;
+        });
+    }
+
+    if (exportData.length === 0) {
+        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const mLabel = exportMonth ? monthNames[exportMonth - 1] : null;
+        const yLabel = exportYear ? exportYear : null;
+        let msg = 'No contracts found';
+        if (mLabel && yLabel) msg += ` for ${mLabel} ${yLabel}`;
+        else if (mLabel) msg += ` for ${mLabel}`;
+        else if (yLabel) msg += ` for ${yLabel}`;
+        msg += '. Nothing to export.';
+        showToast(msg, 'warning');
         return;
     }
 
@@ -1435,12 +1524,24 @@ async function exportToExcel() {
         { header: 'Brand', key: 'brand', width: 25 }
     ];
 
+    // นับ No. ถอยหลัง แยกตาม type ให้ตรงกับ table
+    const typeTotalsExport = {};
+    const groupMapCount = {};
+    exportData.forEach(c => {
+        const type = c.contract_type || 'Unknown';
+        const groupKey = getGroupKey(c);
+        if (groupMapCount[groupKey] === undefined) {
+            groupMapCount[groupKey] = true;
+            typeTotalsExport[type] = (typeTotalsExport[type] || 0) + 1;
+        }
+    });
+
     const typeCounters = {};
     const groupMap = {};
 
-    contracts.forEach(c => {
+    exportData.forEach(c => {
         const type = c.contract_type || 'Unknown';
-        if (!typeCounters[type]) typeCounters[type] = 1;
+        if (!typeCounters[type]) typeCounters[type] = 0;
 
         const groupKey = getGroupKey(c);
         let no;
@@ -1448,7 +1549,7 @@ async function exportToExcel() {
         if (groupMap[groupKey] !== undefined) {
             no = ''; 
         } else {
-            no = typeCounters[type]++; 
+            no = typeTotalsExport[type] - typeCounters[type]++;
             groupMap[groupKey] = no;
         }
 
@@ -1557,8 +1658,10 @@ async function exportToExcel() {
 
     // 6. บันทึกและดาวน์โหลด
     const buffer = await workbook.xlsx.writeBuffer();
-    const dateFileName = new Date().toISOString().slice(0, 10);
-    saveAs(new Blob([buffer]), `contracts_report_${dateFileName}.xlsx`);
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = exportMonth ? monthNames[exportMonth - 1] : 'All';
+    const yearLabel = exportYear ? exportYear : 'AllYears';
+    saveAs(new Blob([buffer]), `contracts_${monthLabel}_${yearLabel}.xlsx`);
 
     showToast('Export Excel successful', 'success');
 }
