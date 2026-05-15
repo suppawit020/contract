@@ -6,7 +6,8 @@
         <title>Contract Management</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
+        <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" />
         <link rel="stylesheet" href="style.css" />
         <style>
             /* ล็อคฟอร์มส่วนที่ 2 และ 3 */
@@ -281,7 +282,7 @@
                         <div class="dash-card dash-card-wide">
                             <div class="dash-card-header">
                                 <h3 class="dash-card-title">Contracts Comparison
-                                    by Sub-team (Area)</h3>
+                                    by Area</h3>
                             </div>
                             <div class="dash-chart-wrap"
                                 style="height: 320px; padding: 20px;">
@@ -335,7 +336,7 @@
                     </div>
                 </div>
 
-                <div class="toolbar">
+                <div class="toolbar" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
                     <div class="search-wrap">
                         <i class="icon">
                             <svg width="16" height="16" fill="none"
@@ -353,19 +354,34 @@
                         <option value="Marketing">Marketing</option>
                         <option value="Yearly">Yearly</option>
                     </select>
-                    <select id="filter-expired" class="filter-select">
-                        <option value>All Expirations</option>
-                        <option value="Valid">Active</option>
-                        <option value="Expired">Expired</option>
+                    <select id="filter-Active" class="filter-select">
+                        <option value>All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
                     </select>
-                    <button class="btn-primary" onclick="openAddModal()">
-                        <svg width="16" height="16" fill="none"
-                            stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24"><line x1="12" y1="5" x2="12"
-                                y2="19"></line><line x1="5" y1="12" x2="19"
-                                y2="12"></line></svg>
-                        Add Contract
-                    </button>
+
+                    <div style="margin-left: auto; display: flex; gap: 10px;">
+                        <button class="btn-secondary" onclick="exportToExcel()"
+                            style="display: flex; align-items: center; gap: 7px; white-space: nowrap;">
+                            <svg width="16" height="16" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24">
+                                <path
+                                    d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Export Excel
+                        </button>
+                        <button class="btn-primary" onclick="openAddModal()">
+                            <svg width="16" height="16" fill="none"
+                                stroke="currentColor" stroke-width="2"
+                                viewBox="0 0 24 24"><line x1="12" y1="5" x2="12"
+                                    y2="19"></line><line x1="5" y1="12" x2="19"
+                                    y2="12"></line></svg>
+                            Add Contract
+                        </button>
+                    </div>
                 </div>
 
                 <div class="table-card">
@@ -380,7 +396,7 @@
                                     <th class="col-code">CODE OUTLET</th>
                                     <th class="col-company">COMPANY</th>
                                     <th class="col-outlet">OUTLET NAME</th>
-                                    <th class="col-area">SUB-TEAM (AREA)</th>
+                                    <th class="col-area">AREA</th>
                                     <th class="col-province">PROVINCE</th>
                                     <th class="col-type">TYPE</th>
                                     <th class="col-promo">PROMOTION</th>
@@ -426,12 +442,16 @@
 
                         <div class="form-step-header">
                             <span class="form-step-num">1</span>
-                            <span class="form-step-label">Select Contract Type</span>
+                            <span class="form-step-label">Select Contract
+                                Type</span>
                         </div>
                         <div class="form-grid" style="margin-bottom:20px;">
                             <div class="form-group full">
-                                <label class="form-label">Contract Type <span class="req">*</span></label>
-                                <select id="field-contract-type" class="form-select" onchange="onContractTypeChange(this.value)">
+                                <label class="form-label">Contract Type <span
+                                        class="req">*</span></label>
+                                <select id="field-contract-type"
+                                    class="form-select"
+                                    onchange="onContractTypeChange(this.value)">
                                     <option value>-- Select Type --</option>
                                     <option value="Marketing">Marketing</option>
                                     <option value="Yearly">Yearly</option>
@@ -439,12 +459,16 @@
                             </div>
                         </div>
 
-                        <div id="dependent-sections" class="locked-content">
-                            <div class="locked-message">* Please select Contract Type first</div>
-                            
+                        <fieldset id="dependent-sections" class="locked-content"
+                            disabled
+                            style="border: none; padding: 0; margin: 0; min-width: 0;">
+                            <div class="locked-message">* Please select Contract
+                                Type first</div>
+
                             <div class="form-step-header">
                                 <span class="form-step-num">2</span>
-                                <span class="form-step-label">Select or Add Outlet</span>
+                                <span class="form-step-label">Select or Add
+                                    Outlet</span>
                             </div>
                             <div id="outlet-section">
                                 <div class="form-grid">
@@ -460,10 +484,11 @@
                                             class="form-select"></select>
                                     </div>
                                     <div class="form-group">
-                                        <label class="form-label">Sub-team (Area)
+                                        <label class="form-label">Area
                                             <span class="req" id="req-area"
                                                 style="display:none;">*</span></label>
-                                        <select id="field-area" class="form-select"
+                                        <select id="field-area"
+                                            class="form-select"
                                             placeholder="Auto-filled"></select>
                                     </div>
                                     <div class="form-group">
@@ -477,16 +502,20 @@
                                 </div>
                             </div>
 
-                            <div class="form-step-header" style="margin-top:20px;">
+                            <div class="form-step-header"
+                                style="margin-top:20px;">
                                 <span class="form-step-num">3</span>
-                                <span class="form-step-label">Contract Details</span>
+                                <span class="form-step-label">Contract
+                                    Details</span>
                             </div>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label">Status</label>
-                                    <select id="field-status" class="form-select">
+                                    <select id="field-status"
+                                        class="form-select">
                                         <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
+                                        <option
+                                            value="Inactive">Inactive</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -505,7 +534,8 @@
                                         class="form-input" />
                                 </div>
                             </div>
-                            <div class="section-divider"><span>Contract Options</span></div>
+                            <div class="section-divider"><span>Contract
+                                    Options</span></div>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label class="form-label">Principle</label>
@@ -539,7 +569,7 @@
                                         placeholder="Additional notes..."></textarea>
                                 </div>
                             </div>
-                        </div>
+                        </fieldset>
 
                     </form>
                 </div>
@@ -591,6 +621,10 @@
             src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         <script
             src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
         <script src="config.js"></script>
         <script src="app.js"></script>
     </body>
