@@ -2001,8 +2001,12 @@ td:first-child {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 6px !important;
-    padding: 8px !important;
-    background: var(--surface-2) !important;
+    
+    /* เปลี่ยนจาก padding: 8px !important; ให้เท่ากับกล่องอื่น */
+    padding: 6px 10px !important; 
+    
+    /* เปลี่ยนจาก var(--surface-2) เป็นสีพื้นหลังปกติ */
+    background: var(--surface) !important; 
 }
 
 /* 2. หน้าตาการ์ด */
@@ -2054,4 +2058,28 @@ td:first-child {
 /* 5. ซ่อนช่องพิมพ์สำหรับโหมด Yearly (Single) เมื่อเลือกแล้ว เพื่อให้ไม่สามารถพิมพ์ต่อได้ */
 #field-trade-deal+.ts-wrapper.single.has-items .ts-control>input {
     display: none !important;
+}
+
+/* ==========================================
+   TomSelect Clear Button Fix & Red Color
+========================================== */
+
+/* 1. เพิ่มระยะห่างด้านขวา เพื่อไม่ให้ข้อความยาวไปทับปุ่ม (X) */
+.ts-control {
+    padding-right: 30px !important; 
+}
+
+/* 2. จัดตำแหน่งปุ่ม (X) และเปลี่ยนเป็น "สีแดง" */
+.ts-wrapper .clear-button {
+    color: #dc2626 !important; /* สีแดง */
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background-color: transparent !important;
+    z-index: 2;
+}
+
+/* 3. สีตอนเอาเมาส์ชี้ (Hover) ให้เป็นสีแดงเข้มขึ้น */
+.ts-wrapper .clear-button:hover {
+    color: #991b1b !important;
 }
