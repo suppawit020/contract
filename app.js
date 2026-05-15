@@ -428,11 +428,9 @@ async function loadUsers() {
         placeholder: 'Auto-filled from Outlet' 
     });
     
-    // ตั้งค่าล็อคช่อง BDE เป็นเริ่มต้น
     tsInstances['field-bde'].disable(); 
 }
 
-// ── ฟังก์ชัน loadCustomers ที่ถูกเพิ่มเข้ามา ───────────────────────
 async function loadCustomers() {
     try {
         const { data, error } = await supabaseClient
@@ -481,7 +479,6 @@ function populateCustomerDropdown() {
         create: (input) => ({ value: 'NEW::' + input, text: `[NEW] ${input}`, outlet_name: input, isNew: true }),
         render: { option_create: (data, escape) => `<div class="create">Add Outlet "<strong>${escape(data.input)}</strong>"</div>` },
         onChange: function (value) {
-            // 1. กรณีสร้าง New Outlet
             if (value && value.startsWith('NEW::')) {
                 const opt = this.options[value];
                 pendingNewOutlet = { outlet_name: opt.outlet_name, region: '', province: '' };
@@ -500,7 +497,6 @@ function populateCustomerDropdown() {
                     tsInstances['field-province'].control_input.placeholder = 'Select Province...'; 
                 }
 
-                // เปิดให้กรอก BDE ได้
                 if (tsInstances['field-bde']) {
                     tsInstances['field-bde'].enable();
                     tsInstances['field-bde'].settings.placeholder = 'Select BDE...';
@@ -513,7 +509,6 @@ function populateCustomerDropdown() {
                 return;
             }
 
-            // 2. กรณีเลือก Outlet ปกติที่มีอยู่แล้วในระบบ
             pendingNewOutlet = null;
             document.getElementById('new-outlet-badge').style.display = 'none';
             if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none';
@@ -537,7 +532,6 @@ function populateCustomerDropdown() {
                 clearTsField('field-province');
             }
 
-            // ล็อค BDE กลับไป
             if (tsInstances['field-bde']) {
                 tsInstances['field-bde'].disable();
                 tsInstances['field-bde'].settings.placeholder = 'Auto-filled from Outlet';
@@ -995,20 +989,14 @@ function onContractTypeChange(type) {
     const hint = document.getElementById('trade-deal-multi-hint');
     const dependentSection = document.getElementById('dependent-sections');
     
-    // ปลดล็อคฟอร์ม
     if (type) {
         if (dependentSection) dependentSection.classList.add('unlocked');
     } else {
         if (dependentSection) dependentSection.classList.remove('unlocked');
     }
     
-    if (type === 'Marketing') { 
-        setTradeDealMaxItems(null); 
-        if (hint) hint.style.display = ''; 
-    } else { 
-        setTradeDealMaxItems(1); 
-        if (hint) hint.style.display = 'none'; 
-    }
+    setTradeDealMaxItems(null); 
+    if (hint) hint.style.display = type ? '' : 'none'; 
 }
 
 function openAddModal() {
@@ -1024,9 +1012,8 @@ function openAddModal() {
     
     const hint = document.getElementById('trade-deal-multi-hint'); 
     if (hint) hint.style.display = 'none'; 
-    setTradeDealMaxItems(1);
+    setTradeDealMaxItems(null);
     
-    // ตั้งค่าล็อคฟอร์มกลับตอนเปิดหน้าเพิ่มข้อมูล
     const dependentSection = document.getElementById('dependent-sections');
     if (dependentSection) dependentSection.classList.remove('unlocked');
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
@@ -1056,7 +1043,6 @@ async function openEditModal(id) {
     document.getElementById('modal-title').textContent = 'Edit Contract'; 
     document.getElementById('new-outlet-badge').style.display = 'none';
 
-    // ปลดล็อคให้ฟอร์มสว่างขึ้นทันทีเวลาเปิด Edit
     const dependentSection = document.getElementById('dependent-sections');
     if (dependentSection) dependentSection.classList.add('unlocked');
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
@@ -1083,7 +1069,7 @@ async function openEditModal(id) {
     setTsValue('field-promotion', contract.promotion || '');
     
     const hint = document.getElementById('trade-deal-multi-hint'); 
-    if (tsInstances['field-trade-deal']) tsInstances['field-trade-deal'].settings.maxItems = 1; 
+    if (tsInstances['field-trade-deal']) tsInstances['field-trade-deal'].settings.maxItems = null; 
     if (hint) hint.style.display = 'none'; 
     setTsValue('field-trade-deal', contract.trade_deal || '');
     
@@ -1100,7 +1086,6 @@ async function openEditMarketingGroup(groupId) {
     document.getElementById('modal-title').textContent = 'Edit Marketing Contract'; 
     document.getElementById('new-outlet-badge').style.display = 'none';
 
-    // ปลดล็อคให้ฟอร์มสว่างขึ้นทันทีเวลาเปิด Edit
     const dependentSection = document.getElementById('dependent-sections');
     if (dependentSection) dependentSection.classList.add('unlocked');
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
@@ -1227,17 +1212,38 @@ async function saveContract() {
                 showToast('Marketing contract added', 'success');
             }
         } else {
-            const payload = { ...basePayload, trade_deal: getTsValue('field-trade-deal') }; 
+            const ts = tsInstances['field-trade-deal']; 
+            let tradeDeals = ts ? [].concat(ts.getValue()).filter(Boolean) : []; 
+            if (tradeDeals.length === 0) tradeDeals = ['']; 
+            
+            const now = new Date().toISOString();
             let error;
+            
             if (editingId) {
+                const payload = { ...basePayload, trade_deal: tradeDeals[0] }; 
                 ({ error } = await supabaseClient.from('contract').update(payload).eq('id', editingId));
+                
+                if (tradeDeals.length > 1) {
+                    const newInserts = tradeDeals.slice(1).map((td, idx) => ({
+                        ...basePayload,
+                        trade_deal: td,
+                        contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx,
+                        created_at: now
+                    }));
+                    await supabaseClient.from('contract').insert(newInserts);
+                }
             } else { 
-                payload.contract_id = 'CT-' + Date.now(); 
-                payload.created_at = new Date().toISOString(); 
-                ({ error } = await supabaseClient.from('contract').insert(payload)); 
+                const inserts = tradeDeals.map((td, idx) => ({
+                    ...basePayload,
+                    trade_deal: td,
+                    contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx,
+                    created_at: now
+                }));
+                ({ error } = await supabaseClient.from('contract').insert(inserts)); 
             }
+            
             if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
-            showToast(editingId ? 'Contract updated' : 'Contract added', 'success');
+            showToast(editingId ? 'Contract updated' : 'Contracts added', 'success');
         }
         
         pendingNewOutlet = null; 
