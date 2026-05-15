@@ -1121,7 +1121,7 @@ td:first-child {
     position: sticky;
     top: 0;
     background: var(--surface);
-    z-index: 1;
+    z-index: 50; /* <--- เปลี่ยนจาก 1 เป็น 50 */
 }
 
 .modal-header h2 {
