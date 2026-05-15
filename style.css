@@ -1121,7 +1121,7 @@ td:first-child {
     position: sticky;
     top: 0;
     background: var(--surface);
-    z-index: 50; /* <--- เปลี่ยนจาก 1 เป็น 50 */
+    z-index: 50;
 }
 
 .modal-header h2 {
@@ -2082,4 +2082,21 @@ td:first-child {
 /* 3. สีตอนเอาเมาส์ชี้ (Hover) ให้เป็นสีแดงเข้มขึ้น */
 .ts-wrapper .clear-button:hover {
     color: #991b1b !important;
+}
+
+/* ── Yearly Group Rows ── */
+.yearly-group-header {
+    background: #f0fdfa; /* สีพื้นหลังโทน Teal อ่อน */
+}
+
+.yearly-group-header:hover {
+    background: #ccfbf1 !important;
+}
+
+.yearly-line-row {
+    background: #f8fafc;
+}
+
+.yearly-line-row:hover {
+    background: #f1f5f9 !important;
 }
