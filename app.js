@@ -23,7 +23,7 @@ let currentPage = 1;
 const PAGE_SIZE = 20;
 let totalCount = 0;
 let searchQuery = '';
-let filterExpired = '';
+let filterStatus = '';
 let filterType = '';
 const tsInstances = {};
 
@@ -81,14 +81,14 @@ function showPage(page) {
     document.getElementById('nav-' + page).classList.add('active');
     const labels = { dashboard: 'Dashboard', contracts: 'Contracts' };
     document.getElementById('breadcrumb-current').textContent = labels[page] || page;
-    
+
     if (page === 'dashboard') {
         const activeView = document.getElementById('dashboard-view-selector').value;
         if (activeView === 'overview') renderDashboard();
         else if (activeView === 'bde') renderBdeChart();
         else if (activeView === 'brands') renderPrincipleChart();
     }
-    
+
     closeSidebar();
     const isMobile = window.innerWidth <= 768;
     if (!isMobile) {
@@ -102,7 +102,7 @@ function renderDashboard() {
     const seenGroups = new Set();
     let marketingCount = 0, yearlyCount = 0;
     let activeCount = 0, inactiveCount = 0;
-    
+
     contracts.forEach(c => {
         const key = getGroupKey(c);
         if (seenGroups.has(key)) return;
@@ -114,13 +114,13 @@ function renderDashboard() {
         if (!c.period || c.period === 'Active') activeCount++;
         else if (c.period === 'Inactive') inactiveCount++;
     });
-    
+
     renderDonutChart('dash-type-chart', [
-        { label: 'Marketing', value: marketingCount, color: '#f59e0b' }, 
+        { label: 'Marketing', value: marketingCount, color: '#f59e0b' },
         { label: 'Yearly', value: yearlyCount, color: '#0891b2' }
     ]);
     renderDonutChart('dash-status-chart', [
-        { label: 'Active', value: activeCount, color: '#16a34a' }, 
+        { label: 'Active', value: activeCount, color: '#16a34a' },
         { label: 'Inactive', value: inactiveCount, color: '#94a3b8' }
     ]);
     renderTrendChart();
@@ -131,13 +131,13 @@ function renderDonutChart(containerId, segments) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const total = segments.reduce((s, x) => s + x.value, 0);
-    if (total === 0) { 
-        container.innerHTML = '<div class="dash-empty">No data available</div>'; 
-        return; 
+    if (total === 0) {
+        container.innerHTML = '<div class="dash-empty">No data available</div>';
+        return;
     }
     const size = 120, cx = size / 2, cy = size / 2, r = 44, strokeW = 22;
     let currentAngle = -90, paths = '';
-    
+
     segments.forEach(seg => {
         if (seg.value === 0) return;
         const pct = seg.value / total;
@@ -152,16 +152,16 @@ function renderDonutChart(containerId, segments) {
         paths += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z" fill="${seg.color}" opacity="0.9"/>`;
         currentAngle += angle;
     });
-    
+
     paths += `<circle cx="${cx}" cy="${cy}" r="${r - strokeW / 2 - 2}" fill="white"/>`;
     paths += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="18" font-weight="700" fill="#1a202c">${total}</text>`;
     paths += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" fill="#718096">TOTAL</text>`;
-    
+
     const legendHtml = segments.map(seg => {
         const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
         return `<div class="legend-item"><div class="legend-dot" style="background:${seg.color}"></div><span class="legend-label">${seg.label}</span><span class="legend-value">${seg.value}</span><span class="legend-pct">${pct}%</span></div>`;
     }).join('');
-    
+
     container.innerHTML = `<div class="donut-wrap"><svg class="donut-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${paths}</svg><div class="donut-legend">${legendHtml}</div></div>`;
 }
 
@@ -171,57 +171,57 @@ function renderTrendChart() {
     const period = document.getElementById('trend-period-selector').value;
     const timeData = new Map();
     const now = new Date();
-    
+
     contracts.forEach(c => {
         if (!c.created_at) return;
         const d = new Date(c.created_at);
         let label = '';
-        if (period === 'daily') { 
+        if (period === 'daily') {
             const diffTime = now - d;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             if (diffDays <= 30 && diffDays >= 0) {
-                label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); 
+                label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
             }
-        } else if (period === 'monthly') { 
+        } else if (period === 'monthly') {
             if (d.getFullYear() === now.getFullYear()) {
-                label = d.toLocaleDateString('en-GB', { month: 'short' }); 
+                label = d.toLocaleDateString('en-GB', { month: 'short' });
             }
         } else if (period === 'yearly') {
             label = d.getFullYear().toString();
         }
         if (label) timeData.set(label, (timeData.get(label) || 0) + 1);
     });
-    
+
     const labels = Array.from(timeData.keys());
     const data = Array.from(timeData.values());
-    
+
     if (trendChartInstance) trendChartInstance.destroy();
     trendChartInstance = new Chart(ctx, {
-        type: 'line', 
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                label: 'New Contracts', 
-                data: data, 
-                borderColor: '#0891b2', 
-                backgroundColor: 'rgba(8, 145, 178, 0.1)', 
-                fill: true, 
-                tension: 0.4, 
-                pointRadius: 4, 
-                pointBackgroundColor: '#0891b2' 
-            }] 
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'New Contracts',
+                data: data,
+                borderColor: '#0891b2',
+                backgroundColor: 'rgba(8, 145, 178, 0.1)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#0891b2'
+            }]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(15, 23, 42, 0.9)' } 
-            }, 
-            scales: { 
-                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }, 
-                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } } 
-            } 
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
+            }
         }
     });
 }
@@ -231,59 +231,59 @@ function renderComparisonChart() {
     if (!ctx) return;
     const areaData = {};
     const seenGroups = new Set();
-    
+
     contracts.forEach(c => {
-        const key = getGroupKey(c); 
-        if (seenGroups.has(key)) return; 
-        seenGroups.add(key); 
+        const key = getGroupKey(c);
+        if (seenGroups.has(key)) return;
+        seenGroups.add(key);
 
         const type = c.contract_type || 'Yearly';
         const area = (c.customer && c.customer.region) ? c.customer.region : 'Unknown Area';
-        
+
         if (!areaData[area]) areaData[area] = { Marketing: 0, Yearly: 0 };
         areaData[area][type]++;
     });
-    
+
     const labels = Object.keys(areaData).sort();
     const marketingCounts = labels.map(label => areaData[label].Marketing);
     const yearlyCounts = labels.map(label => areaData[label].Yearly);
-    
+
     if (comparisonChartInstance) comparisonChartInstance.destroy();
     comparisonChartInstance = new Chart(ctx, {
-        type: 'bar', 
-        data: { 
-            labels: labels, 
+        type: 'bar',
+        data: {
+            labels: labels,
             datasets: [
-                { label: 'Marketing', data: marketingCounts, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 }, 
+                { label: 'Marketing', data: marketingCounts, backgroundColor: '#f59e0b', borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 },
                 { label: 'Yearly', data: yearlyCounts, backgroundColor: '#0891b2', borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 }
-            ] 
+            ]
         },
         options: {
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { 
-                legend: { 
-                    position: 'top', 
-                    labels: { usePointStyle: true, padding: 20, font: { family: "'DM Sans', 'Sarabun', sans-serif", size: 13 } } 
-                }, 
-                tooltip: { 
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                    titleFont: { family: "'DM Sans', 'Sarabun', sans-serif" }, 
-                    bodyFont: { family: "'DM Sans', 'Sarabun', sans-serif" }, 
-                    padding: 10, 
-                    cornerRadius: 8 
-                } 
-            }, 
-            scales: { 
-                x: { 
-                    grid: { display: false }, 
-                    ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } 
-                }, 
-                y: { 
-                    beginAtZero: true, 
-                    border: { display: false }, 
-                    ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } 
-                } 
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { usePointStyle: true, padding: 20, font: { family: "'DM Sans', 'Sarabun', sans-serif", size: 13 } }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { family: "'DM Sans', 'Sarabun', sans-serif" },
+                    bodyFont: { family: "'DM Sans', 'Sarabun', sans-serif" },
+                    padding: 10,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } }
+                },
+                y: {
+                    beginAtZero: true,
+                    border: { display: false },
+                    ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } }
+                }
             },
             interaction: { mode: 'index', intersect: false }
         }
@@ -294,30 +294,30 @@ function renderBdeChart() {
     const ctx = document.getElementById('bdeChart');
     if (!ctx) return;
     const bdeCounts = {};
-    
-    contracts.forEach(c => { 
-        const bdeName = (c.bde_user && c.bde_user.name) ? c.bde_user.name : (c.bde_id || 'Unknown BDE'); 
-        bdeCounts[bdeName] = (bdeCounts[bdeName] || 0) + 1; 
+
+    contracts.forEach(c => {
+        const bdeName = (c.bde_user && c.bde_user.name) ? c.bde_user.name : (c.bde_id || 'Unknown BDE');
+        bdeCounts[bdeName] = (bdeCounts[bdeName] || 0) + 1;
     });
-    
+
     const labels = Object.keys(bdeCounts).sort((a, b) => bdeCounts[b] - bdeCounts[a]);
     const data = labels.map(l => bdeCounts[l]);
-    
+
     if (bdeChartInstance) bdeChartInstance.destroy();
     bdeChartInstance = new Chart(ctx, {
-        type: 'bar', 
-        data: { 
-            labels: labels, 
-            datasets: [{ label: 'Total Contracts', data: data, backgroundColor: '#3b82f6', borderRadius: 4, barPercentage: 0.5 }] 
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'Total Contracts', data: data, backgroundColor: '#3b82f6', borderRadius: 4, barPercentage: 0.5 }]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' } }, 
-            scales: { 
-                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }, 
-                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } } 
-            } 
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' } },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
+            }
         }
     });
 }
@@ -326,32 +326,32 @@ function renderPrincipleChart() {
     const ctx = document.getElementById('principleChart');
     if (!ctx) return;
     const pCounts = {};
-    
-    contracts.forEach(c => { 
-        if (!c.principle) return; 
-        const principles = c.principle.split(',').map(p => p.trim()).filter(p => p); 
-        principles.forEach(p => pCounts[p] = (pCounts[p] || 0) + 1); 
+
+    contracts.forEach(c => {
+        if (!c.principle) return;
+        const principles = c.principle.split(',').map(p => p.trim()).filter(p => p);
+        principles.forEach(p => pCounts[p] = (pCounts[p] || 0) + 1);
     });
-    
+
     const labels = Object.keys(pCounts).sort((a, b) => pCounts[b] - pCounts[a]).slice(0, 10);
     const data = labels.map(l => pCounts[l]);
-    
+
     if (principleChartInstance) principleChartInstance.destroy();
     principleChartInstance = new Chart(ctx, {
-        type: 'bar', 
-        data: { 
-            labels: labels, 
-            datasets: [{ label: 'Contracts', data: data, backgroundColor: '#8b5cf6', borderRadius: 4, barPercentage: 0.6 }] 
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'Contracts', data: data, backgroundColor: '#8b5cf6', borderRadius: 4, barPercentage: 0.6 }]
         },
-        options: { 
-            indexAxis: 'y', 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' } }, 
-            scales: { 
-                x: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }, 
-                y: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } } 
-            } 
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' } },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'DM Sans', 'Sarabun', sans-serif" } } },
+                y: { grid: { display: false }, ticks: { font: { family: "'DM Sans', 'Sarabun', sans-serif" } } }
+            }
         }
     });
 }
@@ -361,41 +361,41 @@ function initRegionProvinceDropdowns() {
     tsInstances['field-area'] = new TomSelect('#field-area', {
         options: areaOpts, valueField: 'value', labelField: 'text', searchField: ['text'], placeholder: 'Auto-filled', create: true,
         onChange: function (value) {
-            const provTs = tsInstances['field-province']; 
+            const provTs = tsInstances['field-province'];
             if (!provTs) return;
             const currentProv = provTs.getValue();
             provTs.clearOptions();
-            if (value && THAILAND_REGIONS[value]) { 
-                const provOpts = THAILAND_REGIONS[value].map(p => ({ value: p, text: p })); 
-                provTs.addOptions(provOpts); 
-            } else { 
-                const allProv = Object.values(THAILAND_REGIONS).flat().map(p => ({ value: p, text: p })); 
-                provTs.addOptions(allProv); 
+            if (value && THAILAND_REGIONS[value]) {
+                const provOpts = THAILAND_REGIONS[value].map(p => ({ value: p, text: p }));
+                provTs.addOptions(provOpts);
+            } else {
+                const allProv = Object.values(THAILAND_REGIONS).flat().map(p => ({ value: p, text: p }));
+                provTs.addOptions(allProv);
             }
             provTs.refreshOptions(false);
             if (currentProv) provTs.setValue(currentProv, true);
         }
     });
-    
+
     const allProv = Object.values(THAILAND_REGIONS).flat().map(p => ({ value: p, text: p }));
-    tsInstances['field-province'] = new TomSelect('#field-province', { 
-        options: allProv, valueField: 'value', labelField: 'text', searchField: ['text'], placeholder: 'Auto-filled', create: true 
+    tsInstances['field-province'] = new TomSelect('#field-province', {
+        options: allProv, valueField: 'value', labelField: 'text', searchField: ['text'], placeholder: 'Auto-filled', create: true
     });
-    tsInstances['field-area'].disable(); 
+    tsInstances['field-area'].disable();
     tsInstances['field-province'].disable();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nav-dashboard').setAttribute('data-tooltip', 'Dashboard');
     document.getElementById('nav-contracts').setAttribute('data-tooltip', 'Contracts');
-    if (window.innerWidth > 768) { 
-        sidebarCollapsed = true; 
-        document.body.classList.add('sidebar-collapsed'); 
+    if (window.innerWidth > 768) {
+        sidebarCollapsed = true;
+        document.body.classList.add('sidebar-collapsed');
     }
     document.getElementById('page-dashboard').style.display = 'block';
     document.getElementById('nav-dashboard').classList.add('active');
     document.getElementById('breadcrumb-current').textContent = 'Dashboard';
-    
+
     initRegionProvinceDropdowns();
     await Promise.all([loadCustomers(), loadUsers(), initCreatableFields()]);
     await backfillGroupIds();
@@ -410,22 +410,22 @@ async function loadUsers() {
     users = data || [];
     const sel = document.getElementById('field-bde');
     sel.innerHTML = '<option value="">-- Auto-filled --</option>';
-    users.forEach(u => { 
-        const opt = document.createElement('option'); 
-        opt.value = u.user_id; 
-        opt.textContent = u.name || u.user_id; 
-        sel.appendChild(opt); 
+    users.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.user_id;
+        opt.textContent = u.name || u.user_id;
+        sel.appendChild(opt);
     });
-    
+
     if (tsInstances['field-bde']) tsInstances['field-bde'].destroy();
-    
-    tsInstances['field-bde'] = new TomSelect('#field-bde', { 
-        searchField: ['text'], 
-        maxOptions: 200, 
-        placeholder: 'Auto-filled from Outlet' 
+
+    tsInstances['field-bde'] = new TomSelect('#field-bde', {
+        searchField: ['text'],
+        maxOptions: 200,
+        placeholder: 'Auto-filled from Outlet'
     });
-    
-    tsInstances['field-bde'].disable(); 
+
+    tsInstances['field-bde'].disable();
 }
 
 async function loadCustomers() {
@@ -434,16 +434,16 @@ async function loadCustomers() {
             .from('customers')
             .select('*')
             .order('customer_id');
-            
+
         if (error) {
             console.error("Error loading customers:", error.message);
             showToast('Failed to load customers: ' + error.message, 'error');
             return;
         }
-        
+
         customers = data || [];
         populateCustomerDropdown();
-        
+
     } catch (err) {
         console.error("Unexpected error in loadCustomers:", err);
     }
@@ -451,9 +451,9 @@ async function loadCustomers() {
 
 function populateCustomerDropdown() {
     const sel = document.getElementById('field-customer');
-    if (tsInstances['field-customer']) { 
-        tsInstances['field-customer'].destroy(); 
-        delete tsInstances['field-customer']; 
+    if (tsInstances['field-customer']) {
+        tsInstances['field-customer'].destroy();
+        delete tsInstances['field-customer'];
     }
     sel.innerHTML = '';
 
@@ -483,15 +483,15 @@ function populateCustomerDropdown() {
 
                 if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'inline';
                 if (document.getElementById('req-province')) document.getElementById('req-province').style.display = 'inline';
-                if (tsInstances['field-area']) { 
-                    tsInstances['field-area'].enable(); 
-                    tsInstances['field-area'].settings.placeholder = 'Select Area...'; 
-                    tsInstances['field-area'].control_input.placeholder = 'Select Area...'; 
+                if (tsInstances['field-area']) {
+                    tsInstances['field-area'].enable();
+                    tsInstances['field-area'].settings.placeholder = 'Select Area...';
+                    tsInstances['field-area'].control_input.placeholder = 'Select Area...';
                 }
-                if (tsInstances['field-province']) { 
-                    tsInstances['field-province'].enable(); 
-                    tsInstances['field-province'].settings.placeholder = 'Select Province...'; 
-                    tsInstances['field-province'].control_input.placeholder = 'Select Province...'; 
+                if (tsInstances['field-province']) {
+                    tsInstances['field-province'].enable();
+                    tsInstances['field-province'].settings.placeholder = 'Select Province...';
+                    tsInstances['field-province'].control_input.placeholder = 'Select Province...';
                 }
 
                 if (tsInstances['field-bde']) {
@@ -551,46 +551,46 @@ async function initCreatableFields() {
         { id: 'field-brands', field: 'brands', placeholder: 'Type or select Brand...' },
         { id: 'field-promotion', field: 'promotion', placeholder: 'Type or select Promotion...' },
     ];
-    
+
     singleFields.forEach(({ id, field, placeholder }) => {
-        const el = document.getElementById(id); 
+        const el = document.getElementById(id);
         if (!el) return;
         if (el.tomselect) el.tomselect.destroy();
         tsInstances[id] = new TomSelect(el, {
-            options: window._creatableOptions[field], 
-            plugins: ['clear_button'], 
-            items: [], 
-            create: true, 
-            createOnBlur: true, 
-            persist: true, 
-            maxItems: 1, 
+            options: window._creatableOptions[field],
+            plugins: ['clear_button'],
+            items: [],
+            create: true,
+            createOnBlur: true,
+            persist: true,
+            maxItems: 1,
             placeholder,
-            render: { 
-                option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`, 
-                no_results: () => `<div class="no-results">No results found — Press Enter to add</div>` 
+            render: {
+                option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`,
+                no_results: () => `<div class="no-results">No results found — Press Enter to add</div>`
             },
-            onItemAdd: function () { 
-                this.setTextboxValue(''); 
-                this.blur(); 
+            onItemAdd: function () {
+                this.setTextboxValue('');
+                this.blur();
             }
         });
     });
-    
+
     const tdEl = document.getElementById('field-trade-deal');
     if (tdEl) {
         if (tdEl.tomselect) tdEl.tomselect.destroy();
         tsInstances['field-trade-deal'] = new TomSelect(tdEl, {
-            options: window._creatableOptions['trade_deal'], 
-            plugins: ['clear_button'], 
-            items: [], 
-            create: true, 
-            createOnBlur: true, 
-            persist: true, 
-            maxItems: 1, 
+            options: window._creatableOptions['trade_deal'],
+            plugins: ['clear_button'],
+            items: [],
+            create: true,
+            createOnBlur: true,
+            persist: true,
+            maxItems: 1,
             placeholder: 'Type or select Trade Deal...',
-            render: { 
-                option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`, 
-                no_results: () => `<div class="no-results">No results found — Press Enter to add</div>` 
+            render: {
+                option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`,
+                no_results: () => `<div class="no-results">No results found — Press Enter to add</div>`
             },
             onItemAdd: function () { this.setTextboxValue(''); this.refreshOptions(false); }
         });
@@ -599,12 +599,12 @@ async function initCreatableFields() {
 
 function collectOptions(data, field) {
     const set = new Set();
-    (data || []).forEach(r => { 
+    (data || []).forEach(r => {
         if (r[field]) {
-            r[field].split(',').forEach(v => { 
-                const t = v.trim(); 
-                if (t) set.add(t); 
-            }); 
+            r[field].split(',').forEach(v => {
+                const t = v.trim();
+                if (t) set.add(t);
+            });
         }
     });
     return [...set].sort().map(v => ({ value: v, text: v }));
@@ -614,15 +614,15 @@ async function backfillGroupIds() {
     const { data, error } = await supabaseClient.from('contract').select('id, contract_type, customer_id, bde_id, start_date, end_date, contract_group_id').is('contract_group_id', null);
     if (error || !data || data.length === 0) return;
     const groups = {};
-    data.forEach(r => { 
-        const key = getGroupKey(r); 
-        if (!groups[key]) groups[key] = []; 
-        groups[key].push(r.id); 
+    data.forEach(r => {
+        const key = getGroupKey(r);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(r.id);
     });
     const updates = [];
-    Object.values(groups).forEach(ids => { 
-        const gid = crypto.randomUUID(); 
-        ids.forEach(id => updates.push({ id, contract_group_id: gid })); 
+    Object.values(groups).forEach(ids => {
+        const gid = crypto.randomUUID();
+        ids.forEach(id => updates.push({ id, contract_group_id: gid }));
     });
     if (updates.length === 0) return;
     for (let i = 0; i < updates.length; i += 50) {
@@ -633,32 +633,23 @@ async function backfillGroupIds() {
 async function loadContracts() {
     showTableLoading(true);
     let query = supabaseClient.from('contract').select(`*, customer:customers!contract_customer_id_fkey (customer_id, outlet_name, province, region, company_name), bde_user:user_information!contract_bde_id_fkey (user_id, name)`);
-    
+
     if (searchQuery) query = query.or(`contract_id.ilike.%${searchQuery}%,promotion.ilike.%${searchQuery}%,principle.ilike.%${searchQuery}%`);
-    if (filterExpired) {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const today = `${year}-${month}-${day}`;
-        
-        if (filterExpired === 'Expired') {
-            query = query.lt('end_date', today);
-        } else if (filterExpired === 'Valid') {
-            query = query.or(`end_date.gte.${today},end_date.is.null`);
-        }
-    }
+
+    // กรองตามสถานะ Active / Inactive
+    if (filterStatus) query = query.eq('period', filterStatus);
+
     if (filterType) query = query.eq('contract_type', filterType);
-    
+
     query = query.order('created_at', { ascending: true });
     const { data, error } = await query;
     showTableLoading(false);
-    
+
     if (error) { showToast('Failed to load data: ' + error.message, 'error'); return; }
-    contracts = data || []; 
-    renderTable(); 
+    contracts = data || [];
+    renderTable();
     updateStats();
-    
+
     if (document.getElementById('page-dashboard').style.display !== 'none') {
         const activeView = document.getElementById('dashboard-view-selector').value;
         if (activeView === 'overview') renderDashboard();
@@ -678,43 +669,43 @@ function getGroupKey(c) {
 
 function renderTable() {
     const tbody = document.getElementById('contracts-tbody');
-    if (contracts.length === 0) { 
-        tbody.innerHTML = `<tr><td colspan="17" class="empty-state">No contracts found.</td></tr>`; 
-        totalCount = 0; 
-        renderPagination(); 
-        return; 
+    if (contracts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="17" class="empty-state">No contracts found.</td></tr>`;
+        totalCount = 0;
+        renderPagination();
+        return;
     }
-    
+
     const rows = [], groupMap = {};
     contracts.forEach(c => {
-        const groupKey = getGroupKey(c); 
+        const groupKey = getGroupKey(c);
         if (groupMap[groupKey] !== undefined) {
-            rows[groupMap[groupKey]].lines.push(c); 
-        } else { 
-            groupMap[groupKey] = rows.length; 
-            rows.push({ type: 'group', groupId: groupKey, header: c, lines: [c] }); 
+            rows[groupMap[groupKey]].lines.push(c);
+        } else {
+            groupMap[groupKey] = rows.length;
+            rows.push({ type: 'group', groupId: groupKey, header: c, lines: [c] });
         }
     });
-    
+
     const typeCounters = {};
-    rows.forEach((row) => { 
+    rows.forEach((row) => {
         const type = row.header.contract_type || 'Unknown';
         if (!typeCounters[type]) {
             typeCounters[type] = 1;
         }
-        row.no = typeCounters[type]++; 
+        row.no = typeCounters[type]++;
     });
-    
-    totalCount = rows.length; 
+
+    totalCount = rows.length;
     renderPagination();
-    
+
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const pageRows = rows.slice(startIndex, startIndex + PAGE_SIZE);
-    let html = ''; 
-    pageRows.forEach(row => { 
-        html += renderContractGroup(row, row.no); 
+    let html = '';
+    pageRows.forEach(row => {
+        html += renderContractGroup(row, row.no);
     });
-    
+
     tbody.innerHTML = html;
 }
 
@@ -724,7 +715,7 @@ function renderContractGroup(row, no) {
     const bdeUser = c.bde_user || {};
     const gid = escHtml(row.groupId);
     const expandBtn = row.lines.length > 1 ? `<button class="btn-expand" id="expand-btn-${gid}" onclick="toggleGroup('${gid}')" title="View Lines">${icons.chevronRight}</button>` : ``;
-    
+
     const isYearly = c.contract_type === 'Yearly';
     const typeLabel = isYearly ? 'Yearly' : 'Marketing';
     const typeClass = isYearly ? 'type-yearly' : 'type-marketing';
@@ -743,7 +734,7 @@ function renderContractGroup(row, no) {
       <td class="col-trade" title="${escHtml(c.trade_deal || '—')}">${escHtml(truncate(c.trade_deal || '—', 20))}</td>
       <td class="col-bde">${escHtml(bdeUser.name || c.bde_id || '—')}</td>
       <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
-      <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
+      <td class="col-end">${getEndColumnHtml(c.start_date, c.end_date)}</td>
       <td class="col-remark">${escHtml(c.support || '—')}</td>
       <td class="col-received">${c.created_at ? formatMonthYear(c.created_at) : '—'}</td>
       <td class="col-principle" title="${escHtml(c.principle || '—')}">${escHtml(truncate(c.principle || '—', 20))}</td>
@@ -753,7 +744,7 @@ function renderContractGroup(row, no) {
         <button class="btn-icon btn-delete" onclick="confirmDeleteGroup('${gid}', '${escHtml(customer.outlet_name || '')}')" title="Delete Group">${icons.trash}</button>
       </td>
     </tr>`;
-    
+
     row.lines.slice(1).forEach((line, idx) => {
         html += `<tr class="table-row ${lineClass}" id="line-row-${gid}-${idx}" style="display:none;" data-group="${gid}">
       <td class="col-no"><div class="no-wrapper line-indent" style="color: var(--text-3);"><div class="no-icon-slot" style="font-size: 13px;">└</div><span></span></div></td>
@@ -767,7 +758,7 @@ function renderContractGroup(row, no) {
       <td class="col-trade">${escHtml(line.trade_deal || '—')}</td>
       <td class="col-bde">${escHtml((line.bde_user && line.bde_user.name) || line.bde_id || '—')}</td>
       <td class="col-start">${line.start_date ? formatDate(line.start_date) : '—'}</td>
-      <td class="col-end">${getEndColumnHtml(line.end_date)}</td>
+      <td class="col-end">${getEndColumnHtml(line.start_date, line.end_date)}</td>
       <td class="col-remark">${escHtml(line.support || '—')}</td>
       <td class="col-received">${line.created_at ? formatMonthYear(line.created_at) : '—'}</td>
       <td class="col-principle">${escHtml(line.principle || '—')}</td>
@@ -781,63 +772,84 @@ function renderContractGroup(row, no) {
     return html;
 }
 
-function toggleGroup(groupId) { 
+function toggleGroup(groupId) {
     const btn = document.getElementById(`expand-btn-${groupId}`);
-    const lineRows = document.querySelectorAll(`tr[data-group="${groupId}"][id^="line-row-"]`); 
-    btn.classList.toggle('open'); 
-    const isOpen = btn.classList.contains('open'); 
-    lineRows.forEach(r => r.style.display = isOpen ? '' : 'none'); 
+    const lineRows = document.querySelectorAll(`tr[data-group="${groupId}"][id^="line-row-"]`);
+    btn.classList.toggle('open');
+    const isOpen = btn.classList.contains('open');
+    lineRows.forEach(r => r.style.display = isOpen ? '' : 'none');
 }
 
-function truncate(str, len) { 
-    if (!str || str.length <= len) return str; 
-    return str.slice(0, len) + '…'; 
+function truncate(str, len) {
+    if (!str || str.length <= len) return str;
+    return str.slice(0, len) + '…';
 }
 
-function getStatusBadge(period) { 
-    if (!period || period === 'Active') return 'badge-active'; 
-    if (period === 'Inactive') return 'badge-inactive'; 
-    return 'badge-default'; 
+function getStatusBadge(period) {
+    if (!period || period === 'Active') return 'badge-active';
+    if (period === 'Inactive') return 'badge-inactive';
+    return 'badge-default';
 }
 
-function formatDate(dateStr) { 
-    if (!dateStr) return '—'; 
-    const d = new Date(dateStr); 
-    const day = d.getDate(); 
-    const month = d.toLocaleString('en-US', { month: 'short' }); 
-    const year = d.getFullYear().toString().slice(-2); 
-    return `${day} ${month} ${year}`; 
-}
-
-function formatMonthYear(dateStr) { 
-    if (!dateStr) return '—'; 
-    const d = new Date(dateStr); 
-    const month = d.toLocaleString('en-US', { month: 'short' }); 
-    const year = d.getFullYear().toString().slice(-2); 
-    return `${month}-${year}`; 
-}
-
-function escHtml(str) { 
-    if (!str) return ''; 
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); 
-}
-
-function getEndColumnHtml(dateStr) {
+function formatDate(dateStr) {
     if (!dateStr) return '—';
-    const formattedDate = formatDate(dateStr);
-    const endDate = new Date(dateStr); 
+    const d = new Date(dateStr);
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const year = d.getFullYear().toString().slice(-2);
+    return `${day} ${month} ${year}`;
+}
+
+function formatMonthYear(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const year = d.getFullYear().toString().slice(-2);
+    return `${month}-${year}`;
+}
+
+function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getEndColumnHtml(startStr, endStr) {
+    if (!endStr) return '—';
+    const formattedEndDate = formatDate(endStr);
+    const endDate = new Date(endStr);
     endDate.setHours(23, 59, 59, 999);
+
     const today = new Date();
+    let expireHtml = '';
+
+    // 1. เช็ควันเริ่มสัญญา (ถ้ามี)
+    if (startStr) {
+        const startDate = new Date(startStr);
+        startDate.setHours(0, 0, 0, 0);
+
+        // ถ้าวันนี้ยังไม่ถึงวันเริ่มสัญญา
+        if (today < startDate) {
+            const diffStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+            expireHtml = `<div class="expire-text" style="color: #64748b; font-size: 11px; font-weight: 600;">Starts in ${diffStart} days</div>`;
+            return `<div>${formattedEndDate}</div>${expireHtml}`;
+        }
+    }
+
+    // 2. ถ้าสัญญาเริ่มแล้ว หรือไม่มีวันเริ่ม (เช็ควันหมดอายุตามปกติ)
     const diffTime = endDate - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    let expireHtml = '';
-    if (diffDays < 0) expireHtml = `<div class="expire-text expire-danger">Expired</div>`;
-    else if (diffDays === 0) expireHtml = `<div class="expire-text expire-danger">Expires Today</div>`;
-    else if (diffDays <= 30) expireHtml = `<div class="expire-text expire-warning">${diffDays} days left</div>`;
-    else expireHtml = `<div class="expire-text expire-safe">${diffDays} days left</div>`;
-    
-    return `<div>${formattedDate}</div>${expireHtml}`;
+
+    if (diffDays < 0) {
+        expireHtml = `<div class="expire-text expire-danger">Expired</div>`;
+    } else if (diffDays === 0) {
+        expireHtml = `<div class="expire-text expire-danger">Expires Today</div>`;
+    } else if (diffDays <= 30) {
+        expireHtml = `<div class="expire-text expire-warning">${diffDays} days left</div>`;
+    } else {
+        expireHtml = `<div class="expire-text expire-safe">${diffDays} days left</div>`;
+    }
+
+    return `<div>${formattedEndDate}</div>${expireHtml}`;
 }
 
 function renderPagination() {
@@ -846,97 +858,97 @@ function renderPagination() {
     const info = document.getElementById('page-info');
     const from = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
     const to = Math.min(currentPage * PAGE_SIZE, totalCount);
-    
-    info.textContent = `Showing ${from}–${to} of ${totalCount} entries`; 
-    el.innerHTML = ''; 
+
+    info.textContent = `Showing ${from}–${to} of ${totalCount} entries`;
+    el.innerHTML = '';
     if (totalPages <= 1) return;
-    
-    const prev = document.createElement('button'); 
-    prev.textContent = '‹'; 
-    prev.className = 'page-btn'; 
-    prev.disabled = currentPage === 1; 
-    prev.onclick = () => { currentPage--; renderTable(); }; 
+
+    const prev = document.createElement('button');
+    prev.textContent = '‹';
+    prev.className = 'page-btn';
+    prev.disabled = currentPage === 1;
+    prev.onclick = () => { currentPage--; renderTable(); };
     el.appendChild(prev);
-    
-    for (let p = Math.max(1, currentPage - 2); p <= Math.min(totalPages, currentPage + 2); p++) { 
-        const btn = document.createElement('button'); 
-        btn.textContent = p; 
-        btn.className = 'page-btn' + (p === currentPage ? ' active' : ''); 
-        btn.onclick = () => { currentPage = p; renderTable(); }; 
-        el.appendChild(btn); 
+
+    for (let p = Math.max(1, currentPage - 2); p <= Math.min(totalPages, currentPage + 2); p++) {
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
+        btn.onclick = () => { currentPage = p; renderTable(); };
+        el.appendChild(btn);
     }
-    
-    const next = document.createElement('button'); 
-    next.textContent = '›'; 
-    next.className = 'page-btn'; 
-    next.disabled = currentPage === totalPages; 
-    next.onclick = () => { currentPage++; renderTable(); }; 
+
+    const next = document.createElement('button');
+    next.textContent = '›';
+    next.className = 'page-btn';
+    next.disabled = currentPage === totalPages;
+    next.onclick = () => { currentPage++; renderTable(); };
     el.appendChild(next);
 }
 
 function updateStats() {
-    let totalGroups = 0, activeGroups = 0, inactiveGroups = 0, marketingGroups = 0, yearlyGroups = 0; 
+    let totalGroups = 0, activeGroups = 0, inactiveGroups = 0, marketingGroups = 0, yearlyGroups = 0;
     const groupMap = new Set();
-    
-    contracts.forEach(c => { 
-        const key = getGroupKey(c); 
-        if (!groupMap.has(key)) { 
-            groupMap.add(key); 
-            totalGroups++; 
-            if (c.contract_type === 'Marketing') marketingGroups++;
-            else yearlyGroups++; 
 
-            if (c.period === 'Active' || !c.period) activeGroups++; 
-            else if (c.period === 'Inactive') inactiveGroups++; 
-        } 
+    contracts.forEach(c => {
+        const key = getGroupKey(c);
+        if (!groupMap.has(key)) {
+            groupMap.add(key);
+            totalGroups++;
+            if (c.contract_type === 'Marketing') marketingGroups++;
+            else yearlyGroups++;
+
+            if (c.period === 'Active' || !c.period) activeGroups++;
+            else if (c.period === 'Inactive') inactiveGroups++;
+        }
     });
-    
-    document.getElementById('stat-total').textContent = totalGroups; 
-    document.getElementById('stat-active').textContent = activeGroups; 
-    document.getElementById('stat-inactive').textContent = inactiveGroups; 
-    document.getElementById('stat-marketing').textContent = marketingGroups; 
+
+    document.getElementById('stat-total').textContent = totalGroups;
+    document.getElementById('stat-active').textContent = activeGroups;
+    document.getElementById('stat-inactive').textContent = inactiveGroups;
+    document.getElementById('stat-marketing').textContent = marketingGroups;
     document.getElementById('stat-yearly').textContent = yearlyGroups;
-    
+
     const hActive = document.getElementById('h-active');
     const hInactive = document.getElementById('h-inactive');
     const navBadge = document.getElementById('nav-badge-contracts');
-    
-    if (hActive) hActive.textContent = activeGroups; 
-    if (hInactive) hInactive.textContent = inactiveGroups; 
+
+    if (hActive) hActive.textContent = activeGroups;
+    if (hInactive) hInactive.textContent = inactiveGroups;
     if (navBadge) navBadge.textContent = totalGroups;
 }
 
-function getTsValue(id) { 
-    const ts = tsInstances[id]; 
-    if (ts) return ts.getValue() || ''; 
-    const el = document.getElementById(id); 
-    return el ? el.value : ''; 
+function getTsValue(id) {
+    const ts = tsInstances[id];
+    if (ts) return ts.getValue() || '';
+    const el = document.getElementById(id);
+    return el ? el.value : '';
 }
 
-function setTsValue(id, value) { 
-    const ts = tsInstances[id]; 
-    if (!ts) { setField(id, value); return; } 
-    if (value) { 
-        if (!ts.options[value]) ts.addOption({ value, text: value }); 
-        ts.setValue(value, true); 
+function setTsValue(id, value) {
+    const ts = tsInstances[id];
+    if (!ts) { setField(id, value); return; }
+    if (value) {
+        if (!ts.options[value]) ts.addOption({ value, text: value });
+        ts.setValue(value, true);
     } else {
-        ts.clear(true); 
+        ts.clear(true);
     }
 }
 
-function clearTsField(id) { 
-    const ts = tsInstances[id]; 
-    if (ts) ts.clear(true); 
-    else setField(id, ''); 
+function clearTsField(id) {
+    const ts = tsInstances[id];
+    if (ts) ts.clear(true);
+    else setField(id, '');
 }
 
-function setField(id, value) { 
-    const el = document.getElementById(id); 
-    if (el) el.value = value; 
+function setField(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
 }
 
 function setTradeDealMaxItems(max) {
-    let ts = tsInstances['field-trade-deal']; 
+    let ts = tsInstances['field-trade-deal'];
     if (!ts) return null;
     const currentOptions = Object.values(ts.options);
     const currentVals = ts.getValue();
@@ -945,27 +957,27 @@ function setTradeDealMaxItems(max) {
     const activePlugins = ['remove_button'];
 
     tsInstances['field-trade-deal'] = new TomSelect('#field-trade-deal', {
-        options: currentOptions, 
-        plugins: activePlugins, 
-        create: true, 
-        createOnBlur: true, 
-        persist: true, 
-        maxItems: max, 
+        options: currentOptions,
+        plugins: activePlugins,
+        create: true,
+        createOnBlur: true,
+        persist: true,
+        maxItems: max,
         placeholder: 'Type or select Trade Deal...',
-        render: { 
-            option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`, 
-            no_results: () => `<div class="no-results">No results found — Press Enter to add</div>` 
+        render: {
+            option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`,
+            no_results: () => `<div class="no-results">No results found — Press Enter to add</div>`
         },
-        onItemAdd: function () { 
-            this.setTextboxValue(''); 
-            this.refreshOptions(false); 
+        onItemAdd: function () {
+            this.setTextboxValue('');
+            this.refreshOptions(false);
         }
     });
-    
+
     ts = tsInstances['field-trade-deal'];
-    if (currentVals !== '' && currentVals.length !== 0) { 
-        if (max === 1 && Array.isArray(currentVals)) ts.setValue(currentVals[0], true); 
-        else ts.setValue(currentVals, true); 
+    if (currentVals !== '' && currentVals.length !== 0) {
+        if (max === 1 && Array.isArray(currentVals)) ts.setValue(currentVals[0], true);
+        else ts.setValue(currentVals, true);
     }
     return ts;
 }
@@ -973,7 +985,7 @@ function setTradeDealMaxItems(max) {
 function onContractTypeChange(type) {
     const hint = document.getElementById('trade-deal-multi-hint');
     const dependentSection = document.getElementById('dependent-sections');
-    
+
     if (type) {
         if (dependentSection) {
             dependentSection.classList.add('unlocked');
@@ -985,56 +997,56 @@ function onContractTypeChange(type) {
             dependentSection.disabled = true;
         }
     }
-    
-    setTradeDealMaxItems(null); 
-    if (hint) hint.style.display = type ? '' : 'none'; 
+
+    setTradeDealMaxItems(null);
+    if (hint) hint.style.display = type ? '' : 'none';
 }
 
 function openAddModal() {
-    editingId = null; 
-    editingGroupId = null; 
-    pendingNewOutlet = null; 
-    document.getElementById('modal-title').textContent = 'Add New Contract'; 
+    editingId = null;
+    editingGroupId = null;
+    pendingNewOutlet = null;
+    document.getElementById('modal-title').textContent = 'Add New Contract';
     document.getElementById('contract-form').reset();
-    
+
     ['field-customer', 'field-bde', 'field-principle', 'field-brands', 'field-promotion', 'field-trade-deal', 'field-area', 'field-province'].forEach(clearTsField);
-    setField('field-contract-type', ''); 
-    setField('field-status', 'Active'); 
-    
-    const hint = document.getElementById('trade-deal-multi-hint'); 
-    if (hint) hint.style.display = 'none'; 
+    setField('field-contract-type', '');
+    setField('field-status', 'Active');
+
+    const hint = document.getElementById('trade-deal-multi-hint');
+    if (hint) hint.style.display = 'none';
     setTradeDealMaxItems(null);
-    
+
     const dependentSection = document.getElementById('dependent-sections');
     if (dependentSection) {
         dependentSection.classList.remove('unlocked');
         dependentSection.disabled = true;
     }
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
-    
+
     document.getElementById('new-outlet-badge').style.display = 'none';
-    
-    if (tsInstances['field-area']) { 
-        tsInstances['field-area'].disable(); 
-        tsInstances['field-area'].settings.placeholder = 'Auto-filled'; 
+
+    if (tsInstances['field-area']) {
+        tsInstances['field-area'].disable();
+        tsInstances['field-area'].settings.placeholder = 'Auto-filled';
     }
-    if (tsInstances['field-province']) { 
-        tsInstances['field-province'].disable(); 
-        tsInstances['field-province'].settings.placeholder = 'Auto-filled'; 
+    if (tsInstances['field-province']) {
+        tsInstances['field-province'].disable();
+        tsInstances['field-province'].settings.placeholder = 'Auto-filled';
     }
     if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none';
     if (document.getElementById('req-province')) document.getElementById('req-province').style.display = 'none';
-    
+
     document.getElementById('modal-overlay').classList.add('active');
 }
 
 async function openEditModal(id) {
-    editingId = id; 
-    editingGroupId = null; 
-    const contract = contracts.find(c => c.id === id); 
+    editingId = id;
+    editingGroupId = null;
+    const contract = contracts.find(c => c.id === id);
     if (!contract) return;
-    
-    document.getElementById('modal-title').textContent = 'Edit Contract'; 
+
+    document.getElementById('modal-title').textContent = 'Edit Contract';
     document.getElementById('new-outlet-badge').style.display = 'none';
 
     const dependentSection = document.getElementById('dependent-sections');
@@ -1043,32 +1055,32 @@ async function openEditModal(id) {
         dependentSection.disabled = false;
     }
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
-    
-    if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none'; 
+
+    if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none';
     if (document.getElementById('req-province')) document.getElementById('req-province').style.display = 'none';
-    
-    setTsValue('field-customer', contract.customer_id); 
+
+    setTsValue('field-customer', contract.customer_id);
     const cust = customers.find(c => String(c.customer_id) === String(contract.customer_id));
-    setTsValue('field-area', cust?.region || ''); 
+    setTsValue('field-area', cust?.region || '');
     setTsValue('field-province', cust?.province || '');
-    
+
     if (tsInstances['field-area']) { tsInstances['field-area'].disable(); tsInstances['field-area'].settings.placeholder = 'Auto-filled'; }
     if (tsInstances['field-province']) { tsInstances['field-province'].disable(); tsInstances['field-province'].settings.placeholder = 'Auto-filled'; }
-    
-    setField('field-contract-type', contract.contract_type || ''); 
-    setTsValue('field-bde', contract.bde_id || ''); 
-    setField('field-start', contract.start_date || ''); 
-    setField('field-end', contract.end_date || ''); 
-    setField('field-remark', contract.support || ''); 
-    setField('field-status', contract.period || 'Active'); 
-    setTsValue('field-principle', contract.principle || ''); 
-    setTsValue('field-brands', contract.brands || ''); 
+
+    setField('field-contract-type', contract.contract_type || '');
+    setTsValue('field-bde', contract.bde_id || '');
+    setField('field-start', contract.start_date || '');
+    setField('field-end', contract.end_date || '');
+    setField('field-remark', contract.support || '');
+    setField('field-status', contract.period || 'Active');
+    setTsValue('field-principle', contract.principle || '');
+    setTsValue('field-brands', contract.brands || '');
     setTsValue('field-promotion', contract.promotion || '');
-    
-    const hint = document.getElementById('trade-deal-multi-hint'); 
-    if (hint) hint.style.display = 'none'; 
-    
-    setTradeDealMaxItems(null); 
+
+    const hint = document.getElementById('trade-deal-multi-hint');
+    if (hint) hint.style.display = 'none';
+
+    setTradeDealMaxItems(null);
     const ts = tsInstances['field-trade-deal'];
     if (ts) {
         ts.clear(true);
@@ -1077,18 +1089,18 @@ async function openEditModal(id) {
         }
         ts.setValue(contract.trade_deal || '', true);
     }
-    
+
     document.getElementById('modal-overlay').classList.add('active');
 }
 
 async function openEditGroup(groupId) {
-    editingId = null; 
-    editingGroupId = groupId; 
-    const groupContracts = contracts.filter(c => getGroupKey(c) === groupId); 
+    editingId = null;
+    editingGroupId = groupId;
+    const groupContracts = contracts.filter(c => getGroupKey(c) === groupId);
     if (!groupContracts.length) return;
-    
-    const first = groupContracts[0]; 
-    document.getElementById('modal-title').textContent = `Edit ${first.contract_type} Contract`; 
+
+    const first = groupContracts[0];
+    document.getElementById('modal-title').textContent = `Edit ${first.contract_type} Contract`;
     document.getElementById('new-outlet-badge').style.display = 'none';
 
     const dependentSection = document.getElementById('dependent-sections');
@@ -1097,144 +1109,144 @@ async function openEditGroup(groupId) {
         dependentSection.disabled = false;
     }
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
-    
-    if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none'; 
+
+    if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none';
     if (document.getElementById('req-province')) document.getElementById('req-province').style.display = 'none';
-    
-    setTsValue('field-customer', first.customer_id); 
+
+    setTsValue('field-customer', first.customer_id);
     const cust = customers.find(c => String(c.customer_id) === String(first.customer_id));
-    setTsValue('field-area', cust?.region || ''); 
+    setTsValue('field-area', cust?.region || '');
     setTsValue('field-province', cust?.province || '');
-    
+
     if (tsInstances['field-area']) { tsInstances['field-area'].disable(); tsInstances['field-area'].settings.placeholder = 'Auto-filled'; }
     if (tsInstances['field-province']) { tsInstances['field-province'].disable(); tsInstances['field-province'].settings.placeholder = 'Auto-filled'; }
-    
-    setField('field-contract-type', first.contract_type); 
-    setTsValue('field-bde', first.bde_id || ''); 
-    setField('field-start', first.start_date || ''); 
-    setField('field-end', first.end_date || ''); 
-    setField('field-remark', first.support || ''); 
-    setField('field-status', first.period || 'Active'); 
-    setTsValue('field-principle', first.principle || ''); 
-    setTsValue('field-brands', first.brands || ''); 
+
+    setField('field-contract-type', first.contract_type);
+    setTsValue('field-bde', first.bde_id || '');
+    setField('field-start', first.start_date || '');
+    setField('field-end', first.end_date || '');
+    setField('field-remark', first.support || '');
+    setField('field-status', first.period || 'Active');
+    setTsValue('field-principle', first.principle || '');
+    setTsValue('field-brands', first.brands || '');
     setTsValue('field-promotion', first.promotion || '');
-    
+
     const hint = document.getElementById('trade-deal-multi-hint');
-    if (hint) hint.style.display = ''; 
-    
-    setTradeDealMaxItems(null); 
+    if (hint) hint.style.display = '';
+
+    setTradeDealMaxItems(null);
     const ts = tsInstances['field-trade-deal'];
-    
-    if (ts) { 
-        ts.clear(true); 
-        const tradeDeals = [...new Set(groupContracts.map(c => c.trade_deal).filter(Boolean))]; 
-        tradeDeals.forEach(td => { 
-            if (!ts.options[td]) ts.addOption({ value: td, text: td }); 
-        }); 
-        ts.setValue(tradeDeals, true); 
+
+    if (ts) {
+        ts.clear(true);
+        const tradeDeals = [...new Set(groupContracts.map(c => c.trade_deal).filter(Boolean))];
+        tradeDeals.forEach(td => {
+            if (!ts.options[td]) ts.addOption({ value: td, text: td });
+        });
+        ts.setValue(tradeDeals, true);
     }
-    
+
     document.getElementById('modal-overlay').classList.add('active');
 }
 
-function closeModal() { 
-    document.getElementById('modal-overlay').classList.remove('active'); 
-    editingId = null; 
-    editingGroupId = null; 
-    pendingNewOutlet = null; 
-    const badge = document.getElementById('new-outlet-badge'); 
-    if (badge) badge.style.display = 'none'; 
-    if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none'; 
-    if (document.getElementById('req-province')) document.getElementById('req-province').style.display = 'none'; 
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+    editingId = null;
+    editingGroupId = null;
+    pendingNewOutlet = null;
+    const badge = document.getElementById('new-outlet-badge');
+    if (badge) badge.style.display = 'none';
+    if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none';
+    if (document.getElementById('req-province')) document.getElementById('req-province').style.display = 'none';
 }
 
 async function saveContract() {
-    const contractType = document.getElementById('field-contract-type').value; 
+    const contractType = document.getElementById('field-contract-type').value;
     if (!contractType) { showToast('Please select Contract Type first', 'error'); return; }
-    
+
     let customerId = getTsValue('field-customer');
     if (pendingNewOutlet) {
         const selArea = getTsValue('field-area');
-        const selProv = getTsValue('field-province'); 
+        const selProv = getTsValue('field-province');
         if (!selArea || !selProv) { showToast('Please select Area and Province for the new Outlet', 'error'); return; }
-        
-        const btn = document.getElementById('btn-save'); 
+
+        const btn = document.getElementById('btn-save');
         btn.disabled = true;
-        
+
         try {
             const tempId = 'PENDING-' + crypto.randomUUID().split('-')[0].toUpperCase();
             const newCust = { customer_id: tempId, outlet_code: tempId, outlet_name: pendingNewOutlet.outlet_name, region: selArea, province: selProv };
             const { data: insertedCust, error: custErr } = await supabaseClient.from('customers').insert(newCust).select('customer_id').single();
             if (custErr) { showToast('Failed to save new Outlet: ' + custErr.message, 'error'); btn.disabled = false; return; }
-            customerId = String(insertedCust.customer_id); 
-            await loadCustomers(); 
+            customerId = String(insertedCust.customer_id);
+            await loadCustomers();
             showToast(`Outlet "${pendingNewOutlet.outlet_name}" saved — Please set Outlet Code in Admin`, 'info');
-        } catch (e) { 
-            showToast('An error occurred: ' + e.message, 'error'); 
-            document.getElementById('btn-save').disabled = false; 
-            return; 
+        } catch (e) {
+            showToast('An error occurred: ' + e.message, 'error');
+            document.getElementById('btn-save').disabled = false;
+            return;
         }
     }
-    
-    if (!customerId || (customerId.startsWith('NEW::') && !pendingNewOutlet)) { 
-        showToast('Please select an Outlet', 'error'); 
-        return; 
+
+    if (!customerId || (customerId.startsWith('NEW::') && !pendingNewOutlet)) {
+        showToast('Please select an Outlet', 'error');
+        return;
     }
-    
-    const btn = document.getElementById('btn-save'); 
+
+    const btn = document.getElementById('btn-save');
     btn.disabled = true;
-    
+
     try {
-        const basePayload = { 
-            customer_id: customerId, 
-            contract_type: contractType, 
-            bde_id: getTsValue('field-bde') || null, 
-            start_date: document.getElementById('field-start').value || null, 
-            end_date: document.getElementById('field-end').value || null, 
-            support: document.getElementById('field-remark').value, 
-            period: document.getElementById('field-status').value, 
-            principle: getTsValue('field-principle'), 
-            brands: getTsValue('field-brands'), 
-            promotion: getTsValue('field-promotion'), 
-            updated_at: new Date().toISOString() 
+        const basePayload = {
+            customer_id: customerId,
+            contract_type: contractType,
+            bde_id: getTsValue('field-bde') || null,
+            start_date: document.getElementById('field-start').value || null,
+            end_date: document.getElementById('field-end').value || null,
+            support: document.getElementById('field-remark').value,
+            period: document.getElementById('field-status').value,
+            principle: getTsValue('field-principle'),
+            brands: getTsValue('field-brands'),
+            promotion: getTsValue('field-promotion'),
+            updated_at: new Date().toISOString()
         };
-        
-        const ts = tsInstances['field-trade-deal']; 
-        let tradeDeals = ts ? [].concat(ts.getValue()).filter(Boolean) : []; 
-        if (tradeDeals.length === 0) tradeDeals = ['']; 
+
+        const ts = tsInstances['field-trade-deal'];
+        let tradeDeals = ts ? [].concat(ts.getValue()).filter(Boolean) : [];
+        if (tradeDeals.length === 0) tradeDeals = [''];
         const now = new Date().toISOString();
-        
+
         // เซฟ Group ทีเดียว (ทำลายของเก่า สร้างใหม่)
         if (editingGroupId) {
             const oldRecords = contracts.filter(c => getGroupKey(c) === editingGroupId);
             const oldIds = oldRecords.map(c => c.id);
-            
+
             // ดึงเวลา created_at เดิมเก็บไว้ ถ้าไม่มีให้ใช้เวลาปัจจุบัน
             const originalCreatedAt = oldRecords.length > 0 ? oldRecords[0].created_at : now;
 
-            if (oldIds.length) { 
-                const { error: delErr } = await supabaseClient.from('contract').delete().in('id', oldIds); 
-                if (delErr) { showToast('Failed to update: ' + delErr.message, 'error'); return; } 
+            if (oldIds.length) {
+                const { error: delErr } = await supabaseClient.from('contract').delete().in('id', oldIds);
+                if (delErr) { showToast('Failed to update: ' + delErr.message, 'error'); return; }
             }
-            
+
             const finalGroupId = editingGroupId.startsWith('grp_') ? crypto.randomUUID() : editingGroupId;
-            
-            const inserts = tradeDeals.map(td => ({ 
-                ...basePayload, 
-                trade_deal: td, 
-                contract_group_id: finalGroupId, 
-                contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), 
-                created_at: originalCreatedAt 
+
+            const inserts = tradeDeals.map(td => ({
+                ...basePayload,
+                trade_deal: td,
+                contract_group_id: finalGroupId,
+                contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5),
+                created_at: originalCreatedAt
             }));
-            const { error } = await supabaseClient.from('contract').insert(inserts); 
+            const { error } = await supabaseClient.from('contract').insert(inserts);
             if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
             showToast('Contract group updated', 'success');
         }
         // อัปเดตไลน์เดี่ยว 
         else if (editingId) {
-            const payload = { ...basePayload, trade_deal: tradeDeals[0] }; 
+            const payload = { ...basePayload, trade_deal: tradeDeals[0] };
             const { error } = await supabaseClient.from('contract').update(payload).eq('id', editingId);
-            
+
             if (tradeDeals.length > 1) {
                 const originalRecord = contracts.find(c => c.id === editingId);
                 const originalCreatedAt = originalRecord ? originalRecord.created_at : now;
@@ -1244,69 +1256,69 @@ async function saveContract() {
                     trade_deal: td,
                     contract_group_id: originalRecord?.contract_group_id || crypto.randomUUID(),
                     contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx,
-                    created_at: originalCreatedAt 
+                    created_at: originalCreatedAt
                 }));
                 await supabaseClient.from('contract').insert(newInserts);
             }
             if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
             showToast('Contract line updated', 'success');
-        } 
+        }
         // สร้าง Group ใหม่เอี่ยม
         else {
             const groupId = crypto.randomUUID();
-            const inserts = tradeDeals.map((td, idx) => ({ 
-                ...basePayload, 
-                trade_deal: td, 
-                contract_group_id: groupId, 
-                contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx, 
-                created_at: now 
+            const inserts = tradeDeals.map((td, idx) => ({
+                ...basePayload,
+                trade_deal: td,
+                contract_group_id: groupId,
+                contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx,
+                created_at: now
             }));
-            const { error } = await supabaseClient.from('contract').insert(inserts); 
+            const { error } = await supabaseClient.from('contract').insert(inserts);
             if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
             showToast('Contract added', 'success');
         }
-        
-        pendingNewOutlet = null; 
-        closeModal(); 
-        await loadContracts(); 
-    } finally { 
-        btn.disabled = false; 
+
+        pendingNewOutlet = null;
+        closeModal();
+        await loadContracts();
+    } finally {
+        btn.disabled = false;
     }
 }
 
-function destroyCreatableFields() { 
-    ['field-principle', 'field-brands', 'field-promotion', 'field-trade-deal'].forEach(id => { 
-        const ts = tsInstances[id]; 
-        if (ts) { ts.destroy(); delete tsInstances[id]; } 
-    }); 
+function destroyCreatableFields() {
+    ['field-principle', 'field-brands', 'field-promotion', 'field-trade-deal'].forEach(id => {
+        const ts = tsInstances[id];
+        if (ts) { ts.destroy(); delete tsInstances[id]; }
+    });
 }
 
 let deleteTargetId = null, deleteTargetGroup = null;
 
-function confirmDelete(id, name) { 
-    deleteTargetId = id; 
-    deleteTargetGroup = null; 
-    document.getElementById('delete-name').textContent = name; 
-    document.getElementById('delete-modal').classList.add('active'); 
+function confirmDelete(id, name) {
+    deleteTargetId = id;
+    deleteTargetGroup = null;
+    document.getElementById('delete-name').textContent = name;
+    document.getElementById('delete-modal').classList.add('active');
 }
 
-function confirmDeleteGroup(groupId, name) { 
-    deleteTargetId = null; 
-    deleteTargetGroup = groupId; 
-    document.getElementById('delete-name').textContent = name + ' (Group)'; 
-    document.getElementById('delete-modal').classList.add('active'); 
+function confirmDeleteGroup(groupId, name) {
+    deleteTargetId = null;
+    deleteTargetGroup = groupId;
+    document.getElementById('delete-name').textContent = name + ' (Group)';
+    document.getElementById('delete-modal').classList.add('active');
 }
 
-function closeDeleteModal() { 
-    document.getElementById('delete-modal').classList.remove('active'); 
-    deleteTargetId = null; 
-    deleteTargetGroup = null; 
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.remove('active');
+    deleteTargetId = null;
+    deleteTargetGroup = null;
 }
 
 async function executeDelete() {
     if (deleteTargetGroup) {
         let error = null;
-        
+
         if (deleteTargetGroup.startsWith('grp_')) {
             const oldIds = contracts.filter(c => getGroupKey(c) === deleteTargetGroup).map(c => c.id);
             if (oldIds.length) {
@@ -1317,73 +1329,73 @@ async function executeDelete() {
             const res = await supabaseClient.from('contract').delete().eq('contract_group_id', deleteTargetGroup);
             error = res.error;
         }
-        
+
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
         showToast('Contract Group deleted', 'success');
-        
+
     } else if (deleteTargetId) {
-        const { error } = await supabaseClient.from('contract').delete().eq('id', deleteTargetId); 
+        const { error } = await supabaseClient.from('contract').delete().eq('id', deleteTargetId);
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
         showToast('Contract deleted', 'success');
     }
-    
-    closeDeleteModal(); 
+
+    closeDeleteModal();
     await loadContracts();
 }
 
 function setupEventListeners() {
-    document.getElementById('search-input').addEventListener('input', debounce(e => { 
-        searchQuery = e.target.value.trim(); 
-        currentPage = 1; 
-        loadContracts(); 
+    document.getElementById('search-input').addEventListener('input', debounce(e => {
+        searchQuery = e.target.value.trim();
+        currentPage = 1;
+        loadContracts();
     }, 400));
-    
-    document.getElementById('filter-expired').addEventListener('change', e => { 
-        filterExpired = e.target.value; 
-        currentPage = 1; 
-        loadContracts(); 
-    }); 
-    
-    document.getElementById('filter-type').addEventListener('change', e => { 
-        filterType = e.target.value; 
-        currentPage = 1; 
-        loadContracts(); 
+
+    document.getElementById('filter-status').addEventListener('change', e => {
+        filterStatus = e.target.value;
+        currentPage = 1;
+        loadContracts();
     });
-    
-    document.getElementById('modal-overlay').addEventListener('click', e => { 
-        if (e.target === document.getElementById('modal-overlay')) closeModal(); 
+
+    document.getElementById('filter-type').addEventListener('change', e => {
+        filterType = e.target.value;
+        currentPage = 1;
+        loadContracts();
     });
-    
-    document.getElementById('dashboard-view-selector').addEventListener('change', e => { 
-        const view = e.target.value; 
-        document.querySelectorAll('.dashboard-view').forEach(el => el.style.display = 'none'); 
-        document.getElementById('view-' + view).style.display = 'block'; 
-        if (view === 'overview') renderDashboard(); 
-        else if (view === 'bde') renderBdeChart(); 
-        else if (view === 'brands') renderPrincipleChart(); 
+
+    document.getElementById('modal-overlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('modal-overlay')) closeModal();
     });
-    
+
+    document.getElementById('dashboard-view-selector').addEventListener('change', e => {
+        const view = e.target.value;
+        document.querySelectorAll('.dashboard-view').forEach(el => el.style.display = 'none');
+        document.getElementById('view-' + view).style.display = 'block';
+        if (view === 'overview') renderDashboard();
+        else if (view === 'bde') renderBdeChart();
+        else if (view === 'brands') renderPrincipleChart();
+    });
+
     document.getElementById('trend-period-selector').addEventListener('change', renderTrendChart);
 }
 
-function showTableLoading(show) { 
-    const el = document.getElementById('table-loading'); 
-    if (el) el.style.display = show ? 'flex' : 'none'; 
+function showTableLoading(show) {
+    const el = document.getElementById('table-loading');
+    if (el) el.style.display = show ? 'flex' : 'none';
 }
 
-function showToast(msg, type = 'info') { 
-    const toast = document.getElementById('toast'); 
-    toast.textContent = msg; 
-    toast.className = `toast toast-${type} show`; 
-    setTimeout(() => toast.classList.remove('show'), 3000); 
+function showToast(msg, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast toast-${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-function debounce(fn, delay) { 
-    let t; 
-    return (...args) => { 
-        clearTimeout(t); 
-        t = setTimeout(() => fn(...args), delay); 
-    }; 
+function debounce(fn, delay) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), delay);
+    };
 }
 
 // ── Export Excel (XLSX) ด้วย ExcelJS ───────────────────────
@@ -1396,7 +1408,13 @@ async function exportToExcel() {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Contracts');
 
-    // 1. กำหนดหัวตาราง
+    // สร้างข้อมูลวันที่ (รูปแบบ: DD MMM YYYY) ปรับให้เหลือแค่วันเดือนปี
+    const now = new Date();
+    const exportDateStr = now.toLocaleDateString('en-GB', { 
+        day: '2-digit', month: 'short', year: 'numeric' 
+    });
+
+    // 1. กำหนดหัวตาราง (กลับมาสิ้นสุดที่ Brand เหมือนเดิม เพื่อไม่ให้ผูกกับตารางหลัก)
     worksheet.columns = [
         { header: 'No.', key: 'no', width: 8 },
         { header: 'CODE OUTLET', key: 'code_outlet', width: 20 },
@@ -1427,15 +1445,11 @@ async function exportToExcel() {
         const groupKey = getGroupKey(c);
         let no;
 
-        if (type === 'Yearly') {
-            no = typeCounters[type]++;
+        if (groupMap[groupKey] !== undefined) {
+            no = ''; 
         } else {
-            if (groupMap[groupKey] !== undefined) {
-                no = '';
-            } else {
-                no = typeCounters[type]++;
-                groupMap[groupKey] = no;
-            }
+            no = typeCounters[type]++; 
+            groupMap[groupKey] = no;
         }
 
         const customer = c.customer || {};
@@ -1462,46 +1476,26 @@ async function exportToExcel() {
         });
     });
 
-    // 2. แต่งสีและฟอนต์หัวตาราง (Header Style)
+    // 2. แต่งสีและฟอนต์หัวตารางหลัก (Header Style)
     const headerRow = worksheet.getRow(1);
     headerRow.eachCell((cell, colNumber) => {
-        // เช็คว่าคอลัมน์ปัจจุบันคือ 'Trade Deal' หรือไม่
         const isTradeDeal = worksheet.getColumn(colNumber).key === 'trade_deal';
 
         if (isTradeDeal) {
-            // สไตล์สำหรับ Trade Deal (พื้นหลังสีเขียวมิ้นต์ ตัวอักษรสีดำ)
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FFD4F7DC' } // สีเขียวมิ้นต์แบบในรูป
-            };
-            cell.font = {
-                name: 'Aptos Display', // ใช้ฟอนต์ Aptos Display
-                color: { argb: 'FF000000' }, // สีดำ
-                bold: true,
-                size: 11
-            };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4F7DC' } };
+            cell.font = { name: 'Aptos Display', color: { argb: 'FF000000' }, bold: true, size: 11 };
         } else {
-            // สไตล์สำหรับหัวตารางอื่นๆ (พื้นหลังสีดำ ตัวอักษรสีขาว)
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: 'FF000000' } // สีดำ
-            };
-            cell.font = {
-                name: 'Aptos Display', // ใช้ฟอนต์ Aptos Display
-                color: { argb: 'FFFFFFFF' }, // สีขาว
-                bold: true,
-                size: 11
-            };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
+            cell.font = { name: 'Aptos Display', color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
         }
 
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
+        // ใส่เส้นขอบสีดำให้หัวตาราง
+        cell.border = { 
+            top: { style: 'thin', color: { argb: 'FF000000' } }, 
+            left: { style: 'thin', color: { argb: 'FF000000' } }, 
+            bottom: { style: 'thin', color: { argb: 'FF000000' } }, 
+            right: { style: 'thin', color: { argb: 'FF000000' } } 
         };
     });
 
@@ -1509,27 +1503,62 @@ async function exportToExcel() {
     worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > 1) {
             row.eachCell((cell) => {
-                // บังคับใช้ฟอนต์ Aptos Display กับข้อมูลทุกบรรทัด
                 cell.font = { name: 'Aptos Display', size: 11 };
                 cell.alignment = { vertical: 'middle' };
+                // เปลี่ยนเส้นขอบของข้อมูลทุกบรรทัดให้เป็นสีดำทั้งหมด
                 cell.border = {
-                    top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                    bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                    right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                    right: { style: 'thin', color: { argb: 'FF000000' } }
                 };
             });
-            row.getCell(1).alignment = { horizontal: 'center' }; // จัดให้ No. อยู่ตรงกลาง
+            row.getCell(1).alignment = { horizontal: 'center' }; 
         }
     });
 
-    // 4. เปิดใช้งาน Auto Filter (เหมือนในรูป)
+    // 4. เปิดใช้งาน Auto Filter (ปรับแก้ให้ครอบคลุมแค่คอลัมน์ A ถึง Q)
     worksheet.autoFilter = 'A1:Q1';
 
-    // 5. บันทึกและดาวน์โหลด
+    // -----------------------------------------------------------------
+    // 5. สร้างช่อง EXPORT DATE แยกออกมาต่างหาก (เว้นระยะ 1 คอลัมน์)
+    // ตารางหลักจบที่ Q (17) เว้นว่าง R (18) ไปเขียนที่ S (19)
+    // -----------------------------------------------------------------
+    worksheet.getColumn('S').width = 18;
+
+    // หัวตารางเซลล์ S1 (สีฟ้า)
+    const exportHeaderCell = worksheet.getCell('S1');
+    exportHeaderCell.value = 'EXPORT DATE';
+    exportHeaderCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF3B82F6' } // สีฟ้า (Blue)
+    };
+    exportHeaderCell.font = { name: 'Aptos Display', color: { argb: 'FFFFFFFF' }, bold: true, size: 11 };
+    exportHeaderCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    exportHeaderCell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } }, 
+        left: { style: 'thin', color: { argb: 'FF000000' } }, 
+        bottom: { style: 'thin', color: { argb: 'FF000000' } }, 
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+    };
+
+    // ข้อมูลวันที่เซลล์ S2 (มีแค่อันเดียว)
+    const exportValueCell = worksheet.getCell('S2');
+    exportValueCell.value = exportDateStr;
+    exportValueCell.font = { name: 'Aptos Display', size: 11 };
+    exportValueCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    exportValueCell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+    };
+
+    // 6. บันทึกและดาวน์โหลด
     const buffer = await workbook.xlsx.writeBuffer();
-    const dateStr = new Date().toISOString().slice(0, 10);
-    saveAs(new Blob([buffer]), `contracts_report_${dateStr}.xlsx`);
-    
+    const dateFileName = new Date().toISOString().slice(0, 10);
+    saveAs(new Blob([buffer]), `contracts_report_${dateFileName}.xlsx`);
+
     showToast('Export Excel successful', 'success');
 }
