@@ -35,7 +35,7 @@ let pendingNewOutlet = null;
 
 // ── Thailand Regions & Provinces ──────────
 const THAILAND_REGIONS = {
-    'Bangkok': ['Bangkok'],
+    'BKK': ['Bangkok'],
     'Central': ['Samut Prakan', 'Nonthaburi', 'Pathum Thani', 'Phra Nakhon Si Ayutthaya', 'Ang Thong', 'Lopburi', 'Singburi', 'Chainat', 'Saraburi', 'Nakhon Nayok', 'Nakhon Sawan', 'Uthai Thani', 'Kamphaeng Phet', 'Sukhothai', 'Phitsanulok', 'Phichit', 'Phetchabun', 'Suphanburi', 'Nakhon Pathom', 'Samut Sakhon', 'Samut Songkhram'],
     'East': ['Chonburi', 'Rayong', 'Chanthaburi', 'Trat', 'Chachoengsao', 'Prachinburi', 'Sa Kaeo'],
     'Northeastern': ['Nakhon Ratchasima', 'Buri Ram', 'Surin', 'Si Saket', 'Ubon Ratchathani', 'Yasothon', 'Chaiyaphum', 'Amnat Charoen', 'Bueng Kan', 'Nong Bua Lamphu', 'Khon Kaen', 'Udon Thani', 'Loei', 'Nong Khai', 'Maha Sarakham', 'Roi Et', 'Kalasin', 'Sakon Nakhon', 'Nakhon Phanom', 'Mukdahan'],
@@ -104,18 +104,15 @@ function renderDashboard() {
     let activeCount = 0, inactiveCount = 0;
     
     contracts.forEach(c => {
-        if (c.contract_type === 'Marketing') {
-            const key = getGroupKey(c);
-            if (seenGroups.has(key)) return;
-            seenGroups.add(key);
-            marketingCount++;
-            if (!c.period || c.period === 'Active') activeCount++;
-            else if (c.period === 'Inactive') inactiveCount++;
-        } else {
-            yearlyCount++;
-            if (!c.period || c.period === 'Active') activeCount++;
-            else if (c.period === 'Inactive') inactiveCount++;
-        }
+        const key = getGroupKey(c);
+        if (seenGroups.has(key)) return;
+        seenGroups.add(key);
+
+        if (c.contract_type === 'Marketing') marketingCount++;
+        else yearlyCount++;
+
+        if (!c.period || c.period === 'Active') activeCount++;
+        else if (c.period === 'Inactive') inactiveCount++;
     });
     
     renderDonutChart('dash-type-chart', [
@@ -236,13 +233,13 @@ function renderComparisonChart() {
     const seenGroups = new Set();
     
     contracts.forEach(c => {
+        const key = getGroupKey(c); 
+        if (seenGroups.has(key)) return; 
+        seenGroups.add(key); 
+
         const type = c.contract_type || 'Yearly';
         const area = (c.customer && c.customer.region) ? c.customer.region : 'Unknown Area';
-        if (type === 'Marketing') { 
-            const key = getGroupKey(c); 
-            if (seenGroups.has(key)) return; 
-            seenGroups.add(key); 
-        }
+        
         if (!areaData[area]) areaData[area] = { Marketing: 0, Yearly: 0 };
         areaData[area][type]++;
     });
@@ -401,7 +398,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     initRegionProvinceDropdowns();
     await Promise.all([loadCustomers(), loadUsers(), initCreatableFields()]);
-    await backfillMarketingGroupIds();
+    await backfillGroupIds();
     await loadContracts();
     renderDashboard();
     setupEventListeners();
@@ -561,6 +558,7 @@ async function initCreatableFields() {
         if (el.tomselect) el.tomselect.destroy();
         tsInstances[id] = new TomSelect(el, {
             options: window._creatableOptions[field], 
+            plugins: ['clear_button'], 
             items: [], 
             create: true, 
             createOnBlur: true, 
@@ -568,8 +566,12 @@ async function initCreatableFields() {
             maxItems: 1, 
             placeholder,
             render: { 
-                option_create: (data) => `<div class="create">Add "<strong>${data.input}</strong>"</div>`, 
+                option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`, 
                 no_results: () => `<div class="no-results">No results found — Press Enter to add</div>` 
+            },
+            onItemAdd: function () { 
+                this.setTextboxValue(''); 
+                this.blur(); 
             }
         });
     });
@@ -587,7 +589,7 @@ async function initCreatableFields() {
             maxItems: 1, 
             placeholder: 'Type or select Trade Deal...',
             render: { 
-                option_create: (data) => `<div class="create">Add "<strong>${data.input}</strong>"</div>`, 
+                option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`, 
                 no_results: () => `<div class="no-results">No results found — Press Enter to add</div>` 
             },
             onItemAdd: function () { this.setTextboxValue(''); this.refreshOptions(false); }
@@ -608,12 +610,12 @@ function collectOptions(data, field) {
     return [...set].sort().map(v => ({ value: v, text: v }));
 }
 
-async function backfillMarketingGroupIds() {
-    const { data, error } = await supabaseClient.from('contract').select('id, customer_id, bde_id, start_date, end_date, contract_group_id').eq('contract_type', 'Marketing').is('contract_group_id', null);
+async function backfillGroupIds() {
+    const { data, error } = await supabaseClient.from('contract').select('id, contract_type, customer_id, bde_id, start_date, end_date, contract_group_id').is('contract_group_id', null);
     if (error || !data || data.length === 0) return;
     const groups = {};
     data.forEach(r => { 
-        const key = [r.customer_id, r.bde_id || '', r.start_date || '', r.end_date || ''].join('|'); 
+        const key = getGroupKey(r); 
         if (!groups[key]) groups[key] = []; 
         groups[key].push(r.id); 
     });
@@ -634,7 +636,12 @@ async function loadContracts() {
     
     if (searchQuery) query = query.or(`contract_id.ilike.%${searchQuery}%,promotion.ilike.%${searchQuery}%,principle.ilike.%${searchQuery}%`);
     if (filterExpired) {
-        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
+        
         if (filterExpired === 'Expired') {
             query = query.lt('end_date', today);
         } else if (filterExpired === 'Valid') {
@@ -661,11 +668,12 @@ async function loadContracts() {
 }
 
 function getGroupKey(c) {
+    const type = c.contract_type || 'Unknown';
     const cid = c.customer_id || 'no_cid';
     const start = c.start_date || 'no_start';
     const end = c.end_date || 'no_end';
     const promo = c.promotion || 'no_promo';
-    return `grp_${cid}_${start}_${end}_${promo}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `grp_${type}_${cid}_${start}_${end}_${promo}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 function renderTable() {
@@ -679,23 +687,22 @@ function renderTable() {
     
     const rows = [], groupMap = {};
     contracts.forEach(c => {
-        if (c.contract_type === 'Marketing') { 
-            const groupKey = getGroupKey(c); 
-            if (groupMap[groupKey] !== undefined) {
-                rows[groupMap[groupKey]].lines.push(c); 
-            } else { 
-                groupMap[groupKey] = rows.length; 
-                rows.push({ type: 'marketing-group', groupId: groupKey, header: c, lines: [c] }); 
-            } 
-        } else {
-            rows.push({ type: 'yearly', contract: c });
+        const groupKey = getGroupKey(c); 
+        if (groupMap[groupKey] !== undefined) {
+            rows[groupMap[groupKey]].lines.push(c); 
+        } else { 
+            groupMap[groupKey] = rows.length; 
+            rows.push({ type: 'group', groupId: groupKey, header: c, lines: [c] }); 
         }
     });
     
-    let mCount = 1, yCount = 1;
-    rows.forEach(row => { 
-        if (row.type === 'marketing-group') row.no = mCount++; 
-        else row.no = yCount++; 
+    const typeCounters = {};
+    rows.forEach((row) => { 
+        const type = row.header.contract_type || 'Unknown';
+        if (!typeCounters[type]) {
+            typeCounters[type] = 1;
+        }
+        row.no = typeCounters[type]++; 
     });
     
     totalCount = rows.length; 
@@ -705,86 +712,64 @@ function renderTable() {
     const pageRows = rows.slice(startIndex, startIndex + PAGE_SIZE);
     let html = ''; 
     pageRows.forEach(row => { 
-        if (row.type === 'yearly') html += renderYearlyRow(row.contract, row.no); 
-        else html += renderMarketingGroup(row, row.no); 
+        html += renderContractGroup(row, row.no); 
     });
     
     tbody.innerHTML = html;
 }
 
-function renderYearlyRow(c, no) {
-    const customer = c.customer || {};
-    const bdeUser = c.bde_user || {};
-    return `<tr class="table-row" data-id="${c.id}">
-      <td class="col-no"><div class="no-wrapper"><div class="no-icon-slot"></div> <span style="font-weight: 500; color: var(--text);">${no}</span></div></td>
-      <td class="col-code">${escHtml(customer.customer_id || c.customer_id || '—')}</td>
-      <td class="col-company">${escHtml(customer.company_name || customer.company || '—')}</td>
-      <td class="col-outlet">${escHtml(customer.outlet_name || '—')}</td>
-      <td class="col-area">${escHtml(customer.region || '—')}</td>
-      <td class="col-province">${escHtml(customer.province || '—')}</td>
-      <td class="col-type"><span class="type-badge type-yearly">Yearly</span></td>
-      <td class="col-promo">${escHtml(c.promotion || '—')}</td>
-      <td class="col-trade">${escHtml(c.trade_deal || '—')}</td>
-      <td class="col-bde">${escHtml(bdeUser.name || c.bde_id || '—')}</td>
-      <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
-      <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
-      <td class="col-remark">${escHtml(c.support || '—')}</td>
-      <td class="col-received">${c.created_at ? formatDate(c.created_at) : '—'}</td>
-      <td class="col-principle">${escHtml(c.principle || '—')}</td>
-      <td class="col-brand">${escHtml(c.brands || '—')}</td>
-      <td class="col-actions">
-        <button class="btn-icon btn-edit" onclick="openEditModal('${c.id}')" title="Edit">${icons.edit}</button>
-        <button class="btn-icon btn-delete" onclick="confirmDelete('${c.id}', '${escHtml(customer.outlet_name || c.contract_id)}')" title="Delete">${icons.trash}</button>
-      </td>
-    </tr>`;
-}
-
-function renderMarketingGroup(row, no) {
+function renderContractGroup(row, no) {
     const c = row.header;
     const customer = c.customer || {};
     const bdeUser = c.bde_user || {};
     const gid = escHtml(row.groupId);
     const expandBtn = row.lines.length > 1 ? `<button class="btn-expand" id="expand-btn-${gid}" onclick="toggleGroup('${gid}')" title="View Lines">${icons.chevronRight}</button>` : ``;
     
-    let html = `<tr class="table-row marketing-group-header" data-group="${gid}">
+    const isYearly = c.contract_type === 'Yearly';
+    const typeLabel = isYearly ? 'Yearly' : 'Marketing';
+    const typeClass = isYearly ? 'type-yearly' : 'type-marketing';
+    const headerClass = isYearly ? 'yearly-group-header' : 'marketing-group-header';
+    const lineClass = isYearly ? 'yearly-line-row' : 'marketing-line-row';
+
+    let html = `<tr class="table-row ${headerClass}" data-group="${gid}">
       <td class="col-no"><div class="no-wrapper"><div class="no-icon-slot">${expandBtn}</div><span style="font-weight: 500; color: var(--text);">${no}</span></div></td>
       <td class="col-code">${escHtml(customer.customer_id || c.customer_id || '—')}</td>
       <td class="col-company">${escHtml(customer.company_name || customer.company || '—')}</td>
       <td class="col-outlet">${escHtml(customer.outlet_name || '—')}</td>
       <td class="col-area">${escHtml(customer.region || '—')}</td>
       <td class="col-province">${escHtml(customer.province || '—')}</td>
-      <td class="col-type"><span class="type-badge type-marketing">Marketing</span></td>
+      <td class="col-type"><span class="type-badge ${typeClass}">${typeLabel}</span></td>
       <td class="col-promo" title="${escHtml(c.promotion || '—')}">${escHtml(truncate(c.promotion || '—', 20))}</td>
       <td class="col-trade" title="${escHtml(c.trade_deal || '—')}">${escHtml(truncate(c.trade_deal || '—', 20))}</td>
       <td class="col-bde">${escHtml(bdeUser.name || c.bde_id || '—')}</td>
       <td class="col-start">${c.start_date ? formatDate(c.start_date) : '—'}</td>
       <td class="col-end">${getEndColumnHtml(c.end_date)}</td>
       <td class="col-remark">${escHtml(c.support || '—')}</td>
-      <td class="col-received">${c.created_at ? formatDate(c.created_at) : '—'}</td>
+      <td class="col-received">${c.created_at ? formatMonthYear(c.created_at) : '—'}</td>
       <td class="col-principle" title="${escHtml(c.principle || '—')}">${escHtml(truncate(c.principle || '—', 20))}</td>
       <td class="col-brand" title="${escHtml(c.brands || '—')}">${escHtml(truncate(c.brands || '—', 20))}</td>
       <td class="col-actions">
-        <button class="btn-icon btn-edit" onclick="openEditMarketingGroup('${gid}')" title="Edit Primary Record">${icons.edit}</button>
+        <button class="btn-icon btn-edit" onclick="openEditGroup('${gid}')" title="Edit Primary Record">${icons.edit}</button>
         <button class="btn-icon btn-delete" onclick="confirmDeleteGroup('${gid}', '${escHtml(customer.outlet_name || '')}')" title="Delete Group">${icons.trash}</button>
       </td>
     </tr>`;
     
     row.lines.slice(1).forEach((line, idx) => {
-        html += `<tr class="table-row marketing-line-row" id="line-row-${gid}-${idx}" style="display:none;" data-group="${gid}">
+        html += `<tr class="table-row ${lineClass}" id="line-row-${gid}-${idx}" style="display:none;" data-group="${gid}">
       <td class="col-no"><div class="no-wrapper line-indent" style="color: var(--text-3);"><div class="no-icon-slot" style="font-size: 13px;">└</div><span></span></div></td>
       <td class="col-code" style="color: var(--text-3); font-weight: normal;">${escHtml(customer.customer_id || line.customer_id || '—')}</td>
       <td class="col-company" style="color: var(--text-3);">${escHtml(customer.company_name || customer.company || '—')}</td>
       <td class="col-outlet" style="color: var(--text-3);">${escHtml(customer.outlet_name || '—')}</td>
       <td class="col-area" style="color: var(--text-3);">${escHtml(customer.region || '—')}</td>
       <td class="col-province" style="color: var(--text-3);">${escHtml(customer.province || '—')}</td>
-      <td class="col-type"><span class="type-badge type-marketing">Marketing</span></td>
+      <td class="col-type"><span class="type-badge ${typeClass}">${typeLabel}</span></td>
       <td class="col-promo">${escHtml(line.promotion || '—')}</td>
       <td class="col-trade">${escHtml(line.trade_deal || '—')}</td>
       <td class="col-bde">${escHtml((line.bde_user && line.bde_user.name) || line.bde_id || '—')}</td>
       <td class="col-start">${line.start_date ? formatDate(line.start_date) : '—'}</td>
       <td class="col-end">${getEndColumnHtml(line.end_date)}</td>
       <td class="col-remark">${escHtml(line.support || '—')}</td>
-      <td class="col-received">${line.created_at ? formatDate(line.created_at) : '—'}</td>
+      <td class="col-received">${line.created_at ? formatMonthYear(line.created_at) : '—'}</td>
       <td class="col-principle">${escHtml(line.principle || '—')}</td>
       <td class="col-brand">${escHtml(line.brands || '—')}</td>
       <td class="col-actions">
@@ -798,7 +783,7 @@ function renderMarketingGroup(row, no) {
 
 function toggleGroup(groupId) { 
     const btn = document.getElementById(`expand-btn-${groupId}`);
-    const lineRows = document.querySelectorAll(`.marketing-line-row[data-group="${groupId}"]`); 
+    const lineRows = document.querySelectorAll(`tr[data-group="${groupId}"][id^="line-row-"]`); 
     btn.classList.toggle('open'); 
     const isOpen = btn.classList.contains('open'); 
     lineRows.forEach(r => r.style.display = isOpen ? '' : 'none'); 
@@ -818,13 +803,18 @@ function getStatusBadge(period) {
 function formatDate(dateStr) { 
     if (!dateStr) return '—'; 
     const d = new Date(dateStr); 
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }); 
+    const day = d.getDate(); 
+    const month = d.toLocaleString('en-US', { month: 'short' }); 
+    const year = d.getFullYear().toString().slice(-2); 
+    return `${day} ${month} ${year}`; 
 }
 
 function formatMonthYear(dateStr) { 
     if (!dateStr) return '—'; 
     const d = new Date(dateStr); 
-    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }).replace(' ', '-'); 
+    const month = d.toLocaleString('en-US', { month: 'short' }); 
+    const year = d.getFullYear().toString().slice(-2); 
+    return `${month}-${year}`; 
 }
 
 function escHtml(str) { 
@@ -889,18 +879,13 @@ function updateStats() {
     const groupMap = new Set();
     
     contracts.forEach(c => { 
-        if (c.contract_type === 'Marketing') { 
-            const key = getGroupKey(c); 
-            if (!groupMap.has(key)) { 
-                groupMap.add(key); 
-                totalGroups++; 
-                marketingGroups++; 
-                if (c.period === 'Active' || !c.period) activeGroups++; 
-                else if (c.period === 'Inactive') inactiveGroups++; 
-            } 
-        } else { 
+        const key = getGroupKey(c); 
+        if (!groupMap.has(key)) { 
+            groupMap.add(key); 
             totalGroups++; 
-            yearlyGroups++; 
+            if (c.contract_type === 'Marketing') marketingGroups++;
+            else yearlyGroups++; 
+
             if (c.period === 'Active' || !c.period) activeGroups++; 
             else if (c.period === 'Inactive') inactiveGroups++; 
         } 
@@ -968,7 +953,7 @@ function setTradeDealMaxItems(max) {
         maxItems: max, 
         placeholder: 'Type or select Trade Deal...',
         render: { 
-            option_create: (data) => `<div class="create">Add "<strong>${data.input}</strong>"</div>`, 
+            option_create: (data, escape) => `<div class="create">Add "<strong>${escape(data.input)}</strong>"</div>`, 
             no_results: () => `<div class="no-results">No results found — Press Enter to add</div>` 
         },
         onItemAdd: function () { 
@@ -990,9 +975,15 @@ function onContractTypeChange(type) {
     const dependentSection = document.getElementById('dependent-sections');
     
     if (type) {
-        if (dependentSection) dependentSection.classList.add('unlocked');
+        if (dependentSection) {
+            dependentSection.classList.add('unlocked');
+            dependentSection.disabled = false;
+        }
     } else {
-        if (dependentSection) dependentSection.classList.remove('unlocked');
+        if (dependentSection) {
+            dependentSection.classList.remove('unlocked');
+            dependentSection.disabled = true;
+        }
     }
     
     setTradeDealMaxItems(null); 
@@ -1015,7 +1006,10 @@ function openAddModal() {
     setTradeDealMaxItems(null);
     
     const dependentSection = document.getElementById('dependent-sections');
-    if (dependentSection) dependentSection.classList.remove('unlocked');
+    if (dependentSection) {
+        dependentSection.classList.remove('unlocked');
+        dependentSection.disabled = true;
+    }
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
     
     document.getElementById('new-outlet-badge').style.display = 'none';
@@ -1044,7 +1038,10 @@ async function openEditModal(id) {
     document.getElementById('new-outlet-badge').style.display = 'none';
 
     const dependentSection = document.getElementById('dependent-sections');
-    if (dependentSection) dependentSection.classList.add('unlocked');
+    if (dependentSection) {
+        dependentSection.classList.add('unlocked');
+        dependentSection.disabled = false;
+    }
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
     
     if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none'; 
@@ -1069,25 +1066,36 @@ async function openEditModal(id) {
     setTsValue('field-promotion', contract.promotion || '');
     
     const hint = document.getElementById('trade-deal-multi-hint'); 
-    if (tsInstances['field-trade-deal']) tsInstances['field-trade-deal'].settings.maxItems = null; 
     if (hint) hint.style.display = 'none'; 
-    setTsValue('field-trade-deal', contract.trade_deal || '');
+    
+    setTradeDealMaxItems(null); 
+    const ts = tsInstances['field-trade-deal'];
+    if (ts) {
+        ts.clear(true);
+        if (contract.trade_deal) {
+            if (!ts.options[contract.trade_deal]) ts.addOption({ value: contract.trade_deal, text: contract.trade_deal });
+        }
+        ts.setValue(contract.trade_deal || '', true);
+    }
     
     document.getElementById('modal-overlay').classList.add('active');
 }
 
-async function openEditMarketingGroup(groupId) {
+async function openEditGroup(groupId) {
     editingId = null; 
     editingGroupId = groupId; 
-    const groupContracts = contracts.filter(c => c.contract_type === 'Marketing' && getGroupKey(c) === groupId); 
+    const groupContracts = contracts.filter(c => getGroupKey(c) === groupId); 
     if (!groupContracts.length) return;
     
     const first = groupContracts[0]; 
-    document.getElementById('modal-title').textContent = 'Edit Marketing Contract'; 
+    document.getElementById('modal-title').textContent = `Edit ${first.contract_type} Contract`; 
     document.getElementById('new-outlet-badge').style.display = 'none';
 
     const dependentSection = document.getElementById('dependent-sections');
-    if (dependentSection) dependentSection.classList.add('unlocked');
+    if (dependentSection) {
+        dependentSection.classList.add('unlocked');
+        dependentSection.disabled = false;
+    }
     if (tsInstances['field-bde']) tsInstances['field-bde'].disable();
     
     if (document.getElementById('req-area')) document.getElementById('req-area').style.display = 'none'; 
@@ -1101,7 +1109,7 @@ async function openEditMarketingGroup(groupId) {
     if (tsInstances['field-area']) { tsInstances['field-area'].disable(); tsInstances['field-area'].settings.placeholder = 'Auto-filled'; }
     if (tsInstances['field-province']) { tsInstances['field-province'].disable(); tsInstances['field-province'].settings.placeholder = 'Auto-filled'; }
     
-    setField('field-contract-type', 'Marketing'); 
+    setField('field-contract-type', first.contract_type); 
     setTsValue('field-bde', first.bde_id || ''); 
     setField('field-start', first.start_date || ''); 
     setField('field-end', first.end_date || ''); 
@@ -1111,10 +1119,13 @@ async function openEditMarketingGroup(groupId) {
     setTsValue('field-brands', first.brands || ''); 
     setTsValue('field-promotion', first.promotion || '');
     
-    const ts = tsInstances['field-trade-deal'];
     const hint = document.getElementById('trade-deal-multi-hint');
+    if (hint) hint.style.display = ''; 
+    
+    setTradeDealMaxItems(null); 
+    const ts = tsInstances['field-trade-deal'];
+    
     if (ts) { 
-        ts.settings.maxItems = null; 
         ts.clear(true); 
         const tradeDeals = [...new Set(groupContracts.map(c => c.trade_deal).filter(Boolean))]; 
         tradeDeals.forEach(td => { 
@@ -1122,7 +1133,7 @@ async function openEditMarketingGroup(groupId) {
         }); 
         ts.setValue(tradeDeals, true); 
     }
-    if (hint) hint.style.display = ''; 
+    
     document.getElementById('modal-overlay').classList.add('active');
 }
 
@@ -1188,62 +1199,71 @@ async function saveContract() {
             updated_at: new Date().toISOString() 
         };
         
-        if (contractType === 'Marketing') {
-            const ts = tsInstances['field-trade-deal']; 
-            let tradeDeals = ts ? [].concat(ts.getValue()).filter(Boolean) : []; 
-            if (tradeDeals.length === 0) tradeDeals = ['']; 
-            const now = new Date().toISOString();
+        const ts = tsInstances['field-trade-deal']; 
+        let tradeDeals = ts ? [].concat(ts.getValue()).filter(Boolean) : []; 
+        if (tradeDeals.length === 0) tradeDeals = ['']; 
+        const now = new Date().toISOString();
+        
+        // เซฟ Group ทีเดียว (ทำลายของเก่า สร้างใหม่)
+        if (editingGroupId) {
+            const oldRecords = contracts.filter(c => getGroupKey(c) === editingGroupId);
+            const oldIds = oldRecords.map(c => c.id);
             
-            if (editingGroupId) {
-                const oldIds = contracts.filter(c => c.contract_type === 'Marketing' && getGroupKey(c) === editingGroupId).map(c => c.id);
-                if (oldIds.length) { 
-                    const { error: delErr } = await supabaseClient.from('contract').delete().in('id', oldIds); 
-                    if (delErr) { showToast('Failed to update: ' + delErr.message, 'error'); return; } 
-                }
-                const inserts = tradeDeals.map(td => ({ ...basePayload, trade_deal: td, contract_group_id: editingGroupId, contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), created_at: now }));
-                const { error } = await supabaseClient.from('contract').insert(inserts); 
-                if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
-                showToast('Marketing contract updated', 'success');
-            } else {
-                const groupId = crypto.randomUUID();
-                const inserts = tradeDeals.map(td => ({ ...basePayload, trade_deal: td, contract_group_id: groupId, contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), created_at: now }));
-                const { error } = await supabaseClient.from('contract').insert(inserts); 
-                if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
-                showToast('Marketing contract added', 'success');
+            // ดึงเวลา created_at เดิมเก็บไว้ ถ้าไม่มีให้ใช้เวลาปัจจุบัน
+            const originalCreatedAt = oldRecords.length > 0 ? oldRecords[0].created_at : now;
+
+            if (oldIds.length) { 
+                const { error: delErr } = await supabaseClient.from('contract').delete().in('id', oldIds); 
+                if (delErr) { showToast('Failed to update: ' + delErr.message, 'error'); return; } 
             }
-        } else {
-            const ts = tsInstances['field-trade-deal']; 
-            let tradeDeals = ts ? [].concat(ts.getValue()).filter(Boolean) : []; 
-            if (tradeDeals.length === 0) tradeDeals = ['']; 
             
-            const now = new Date().toISOString();
-            let error;
+            const finalGroupId = editingGroupId.startsWith('grp_') ? crypto.randomUUID() : editingGroupId;
             
-            if (editingId) {
-                const payload = { ...basePayload, trade_deal: tradeDeals[0] }; 
-                ({ error } = await supabaseClient.from('contract').update(payload).eq('id', editingId));
-                
-                if (tradeDeals.length > 1) {
-                    const newInserts = tradeDeals.slice(1).map((td, idx) => ({
-                        ...basePayload,
-                        trade_deal: td,
-                        contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx,
-                        created_at: now
-                    }));
-                    await supabaseClient.from('contract').insert(newInserts);
-                }
-            } else { 
-                const inserts = tradeDeals.map((td, idx) => ({
+            const inserts = tradeDeals.map(td => ({ 
+                ...basePayload, 
+                trade_deal: td, 
+                contract_group_id: finalGroupId, 
+                contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), 
+                created_at: originalCreatedAt 
+            }));
+            const { error } = await supabaseClient.from('contract').insert(inserts); 
+            if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
+            showToast('Contract group updated', 'success');
+        }
+        // อัปเดตไลน์เดี่ยว 
+        else if (editingId) {
+            const payload = { ...basePayload, trade_deal: tradeDeals[0] }; 
+            const { error } = await supabaseClient.from('contract').update(payload).eq('id', editingId);
+            
+            if (tradeDeals.length > 1) {
+                const originalRecord = contracts.find(c => c.id === editingId);
+                const originalCreatedAt = originalRecord ? originalRecord.created_at : now;
+
+                const newInserts = tradeDeals.slice(1).map((td, idx) => ({
                     ...basePayload,
                     trade_deal: td,
+                    contract_group_id: originalRecord?.contract_group_id || crypto.randomUUID(),
                     contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx,
-                    created_at: now
+                    created_at: originalCreatedAt 
                 }));
-                ({ error } = await supabaseClient.from('contract').insert(inserts)); 
+                await supabaseClient.from('contract').insert(newInserts);
             }
-            
             if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
-            showToast(editingId ? 'Contract updated' : 'Contracts added', 'success');
+            showToast('Contract line updated', 'success');
+        } 
+        // สร้าง Group ใหม่เอี่ยม
+        else {
+            const groupId = crypto.randomUUID();
+            const inserts = tradeDeals.map((td, idx) => ({ 
+                ...basePayload, 
+                trade_deal: td, 
+                contract_group_id: groupId, 
+                contract_id: 'CT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) + idx, 
+                created_at: now 
+            }));
+            const { error } = await supabaseClient.from('contract').insert(inserts); 
+            if (error) { showToast('Failed to save: ' + error.message, 'error'); return; }
+            showToast('Contract added', 'success');
         }
         
         pendingNewOutlet = null; 
@@ -1273,7 +1293,7 @@ function confirmDelete(id, name) {
 function confirmDeleteGroup(groupId, name) { 
     deleteTargetId = null; 
     deleteTargetGroup = groupId; 
-    document.getElementById('delete-name').textContent = name + ' (Marketing Group)'; 
+    document.getElementById('delete-name').textContent = name + ' (Group)'; 
     document.getElementById('delete-modal').classList.add('active'); 
 }
 
@@ -1285,15 +1305,28 @@ function closeDeleteModal() {
 
 async function executeDelete() {
     if (deleteTargetGroup) {
-        const ids = contracts.filter(c => c.contract_type === 'Marketing' && getGroupKey(c) === deleteTargetGroup).map(c => c.id);
-        const { error } = await supabaseClient.from('contract').delete().in('id', ids); 
+        let error = null;
+        
+        if (deleteTargetGroup.startsWith('grp_')) {
+            const oldIds = contracts.filter(c => getGroupKey(c) === deleteTargetGroup).map(c => c.id);
+            if (oldIds.length) {
+                const res = await supabaseClient.from('contract').delete().in('id', oldIds);
+                error = res.error;
+            }
+        } else {
+            const res = await supabaseClient.from('contract').delete().eq('contract_group_id', deleteTargetGroup);
+            error = res.error;
+        }
+        
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
-        showToast('Marketing Group deleted', 'success');
+        showToast('Contract Group deleted', 'success');
+        
     } else if (deleteTargetId) {
         const { error } = await supabaseClient.from('contract').delete().eq('id', deleteTargetId); 
         if (error) { showToast('Deletion failed: ' + error.message, 'error'); return; }
         showToast('Contract deleted', 'success');
     }
+    
     closeDeleteModal(); 
     await loadContracts();
 }
@@ -1351,4 +1384,152 @@ function debounce(fn, delay) {
         clearTimeout(t); 
         t = setTimeout(() => fn(...args), delay); 
     }; 
+}
+
+// ── Export Excel (XLSX) ด้วย ExcelJS ───────────────────────
+async function exportToExcel() {
+    if (!contracts || contracts.length === 0) {
+        showToast('No data to export', 'warning');
+        return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Contracts');
+
+    // 1. กำหนดหัวตาราง
+    worksheet.columns = [
+        { header: 'No.', key: 'no', width: 8 },
+        { header: 'CODE OUTLET', key: 'code_outlet', width: 20 },
+        { header: 'COMPANY', key: 'company', width: 30 },
+        { header: 'OUTLET NAME', key: 'outlet_name', width: 35 },
+        { header: 'AREA', key: 'area', width: 15 },
+        { header: 'PROVINCE', key: 'province', width: 20 },
+        { header: 'Type', key: 'type', width: 12 },
+        { header: 'Promotion', key: 'promotion', width: 25 },
+        { header: 'Trade Deal', key: 'trade_deal', width: 25 },
+        { header: 'BDE', key: 'bde', width: 20 },
+        { header: 'START', key: 'start', width: 15 },
+        { header: 'END', key: 'end', width: 15 },
+        { header: 'REMARK', key: 'remark', width: 30 },
+        { header: 'RECEIVED DATE', key: 'received', width: 18 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Principle', key: 'principle', width: 25 },
+        { header: 'Brand', key: 'brand', width: 25 }
+    ];
+
+    const typeCounters = {};
+    const groupMap = {};
+
+    contracts.forEach(c => {
+        const type = c.contract_type || 'Unknown';
+        if (!typeCounters[type]) typeCounters[type] = 1;
+
+        const groupKey = getGroupKey(c);
+        let no;
+
+        if (type === 'Yearly') {
+            no = typeCounters[type]++;
+        } else {
+            if (groupMap[groupKey] !== undefined) {
+                no = '';
+            } else {
+                no = typeCounters[type]++;
+                groupMap[groupKey] = no;
+            }
+        }
+
+        const customer = c.customer || {};
+        const bdeUser = c.bde_user || {};
+
+        worksheet.addRow({
+            no: no,
+            code_outlet: customer.customer_id || c.customer_id || '',
+            company: customer.company_name || customer.company || '',
+            outlet_name: customer.outlet_name || '',
+            area: customer.region || '',
+            province: customer.province || '',
+            type: c.contract_type || '',
+            promotion: c.promotion || '',
+            trade_deal: c.trade_deal || '',
+            bde: bdeUser.name || c.bde_id || '',
+            start: c.start_date ? formatDate(c.start_date) : '',
+            end: c.end_date ? formatDate(c.end_date) : '',
+            remark: c.support || '',
+            received: c.created_at ? formatMonthYear(c.created_at) : '',
+            status: c.period || 'Active',
+            principle: c.principle || '',
+            brand: c.brands || ''
+        });
+    });
+
+    // 2. แต่งสีและฟอนต์หัวตาราง (Header Style)
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell, colNumber) => {
+        // เช็คว่าคอลัมน์ปัจจุบันคือ 'Trade Deal' หรือไม่
+        const isTradeDeal = worksheet.getColumn(colNumber).key === 'trade_deal';
+
+        if (isTradeDeal) {
+            // สไตล์สำหรับ Trade Deal (พื้นหลังสีเขียวมิ้นต์ ตัวอักษรสีดำ)
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD4F7DC' } // สีเขียวมิ้นต์แบบในรูป
+            };
+            cell.font = {
+                name: 'Aptos Display', // ใช้ฟอนต์ Aptos Display
+                color: { argb: 'FF000000' }, // สีดำ
+                bold: true,
+                size: 11
+            };
+        } else {
+            // สไตล์สำหรับหัวตารางอื่นๆ (พื้นหลังสีดำ ตัวอักษรสีขาว)
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF000000' } // สีดำ
+            };
+            cell.font = {
+                name: 'Aptos Display', // ใช้ฟอนต์ Aptos Display
+                color: { argb: 'FFFFFFFF' }, // สีขาว
+                bold: true,
+                size: 11
+            };
+        }
+
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+        };
+    });
+
+    // 3. จัดรูปแบบข้อมูล (Body Style)
+    worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) {
+            row.eachCell((cell) => {
+                // บังคับใช้ฟอนต์ Aptos Display กับข้อมูลทุกบรรทัด
+                cell.font = { name: 'Aptos Display', size: 11 };
+                cell.alignment = { vertical: 'middle' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                    bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                    right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                };
+            });
+            row.getCell(1).alignment = { horizontal: 'center' }; // จัดให้ No. อยู่ตรงกลาง
+        }
+    });
+
+    // 4. เปิดใช้งาน Auto Filter (เหมือนในรูป)
+    worksheet.autoFilter = 'A1:Q1';
+
+    // 5. บันทึกและดาวน์โหลด
+    const buffer = await workbook.xlsx.writeBuffer();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    saveAs(new Blob([buffer]), `contracts_report_${dateStr}.xlsx`);
+    
+    showToast('Export Excel successful', 'success');
 }
